@@ -1,0 +1,23 @@
+{
+  "name": "geoastra-backend",
+  "version": "0.1.0",
+  "description": "GeoAstra AI Application Backend",
+  "main": "src/server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "test": "node --test tests/*.test.js"
+  },
+  "dependencies": {
+    "axios": "^1.7.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.7",
+    "supertest": "^7.0.0"
+  }
+}
+
