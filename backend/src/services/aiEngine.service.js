@@ -32,5 +32,13 @@ export const aiEngineService = {
       };
     }
   },
+
+  /**
+   * Run scientific analysis pipeline on ai-engine
+   */
+  async triggerAnalysis(payload) {
+    const response = await client.post("/internal/v1/analysis/run", payload);
+    return response.data;
+  },
 };
 
