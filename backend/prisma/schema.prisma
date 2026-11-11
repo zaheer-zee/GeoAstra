@@ -1,0 +1,147 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AnalysisStatus {
+  QUEUED
+  ACQUIRING_DATA
+  PREPROCESSING
+  RUNNING_ALGORITHMS
+  GENERATING_OUTPUTS
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+model User {
+  id           String            @id @default(uuid())
+  name         String
+  email        String            @unique
+  passwordHash String            @map("password_hash")
+  createdAt    DateTime          @default(now()) @map("created_at")
+  updatedAt    DateTime          @updatedAt @map("updated_at")
+
+  areas        Area[]
+  analyses     Analysis[]
+  signatures   TargetSignature[]
+
+  @@map("users")
+}
+
+model Area {
+  id        String     @id @default(uuid())
+  userId    String     @map("user_id")
+  name      String
+  geometry  Json
+  crs       String     @default("EPSG:4326")
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  analyses  Analysis[]
+
+  @@map("areas")
+}
+
+model SatelliteScene {
+  id                     String     @id @default(uuid())
+  provider               String
+  sensor                 String
+  externalSceneId        String     @map("external_scene_id")
+  acquisitionTime        DateTime   @map("acquisition_time")
+  footprint              Json
+  productLevel           String     @map("product_level")
+  cloudOrQualityMetadata Json?      @map("cloud_or_quality_metadata")
+  wavelengthMetadata     Json?      @map("wavelength_metadata")
+  spatialResolution      Float?     @map("spatial_resolution")
+  storageKey             String?    @map("storage_key")
+  metadataJson           Json?      @map("metadata_json")
+  createdAt              DateTime   @default(now()) @map("created_at")
+
+  analyses               Analysis[]
+
+  @@map("satellite_scenes")
+}
+
+model TargetSignature {
+  id          String     @id @default(uuid())
+  ownerUserId String?    @map("owner_user_id")
+  name        String
+  sensor      String
+  wavelengths Json
+  values      Json
+  units       String
+  source      String
+  provenance  String?
+  createdAt   DateTime   @default(now()) @map("created_at")
+
+  owner       User?      @relation(fields: [ownerUserId], references: [id], onDelete: SetNull)
+  analyses    Analysis[]
+
+  @@map("target_signatures")
+}
+
+model Analysis {
+  id                     String            @id @default(uuid())
+  userId                 String            @map("user_id")
+  areaId                 String            @map("area_id")
+  sceneId                String            @map("scene_id")
+  status                 AnalysisStatus    @default(QUEUED)
+  algorithmConfiguration Json              @map("algorithm_configuration")
+  targetSignatureId      String?           @map("target_signature_id")
+  startedAt              DateTime?         @map("started_at")
+  completedAt            DateTime?         @map("completed_at")
+  errorMessage           String?           @map("error_message")
+  createdAt              DateTime          @default(now()) @map("created_at")
+  updatedAt              DateTime          @updatedAt @map("updated_at")
+
+  user                   User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  area                   Area              @relation(fields: [areaId], references: [id], onDelete: Cascade)
+  scene                  SatelliteScene    @relation(fields: [sceneId], references: [id], onDelete: Cascade)
+  targetSignature        TargetSignature?  @relation(fields: [targetSignatureId], references: [id], onDelete: SetNull)
+  detectionResults       DetectionResult[]
+  providerRuns           ProviderRun[]
+
+  @@map("analyses")
+}
+
+model DetectionResult {
+  id                 String   @id @default(uuid())
+  analysisId         String   @map("analysis_id")
+  resultType         String   @map("result_type")
+  algorithm          String
+  rasterStorageKey   String?  @map("raster_storage_key")
+  vectorStorageKey   String?  @map("vector_storage_key")
+  previewStorageKey  String?  @map("preview_storage_key")
+  metricsJson        Json?    @map("metrics_json")
+  processingMetadata Json?    @map("processing_metadata")
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  analysis           Analysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+
+  @@map("detection_results")
+}
+
+model ProviderRun {
+  id           String   @id @default(uuid())
+  analysisId   String   @map("analysis_id")
+  provider     String
+  model        String
+  task         String
+  status       String
+  responseJson Json?    @map("response_json")
+  latencyMs    Int?     @map("latency_ms")
+  usageJson    Json?    @map("usage_json")
+  error        String?
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  analysis     Analysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+
+  @@map("provider_runs")
+}
+
