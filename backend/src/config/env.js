@@ -5,6 +5,10 @@ dotenv.config();
 export const config = {
   env: process.env.NODE_ENV || "development",
   port: parseInt(process.env.PORT || "5001", 10),
+  jwt: {
+    secret: process.env.JWT_SECRET || "geospectra_dev_jwt_secret_key_2026_super_secure",
+    expiresIn: process.env.JWT_EXPIRES_IN || "7d",
+  },
   aiEngine: {
     url: process.env.AI_ENGINE_URL || "http://localhost:8000",
     internalApiKey: process.env.INTERNAL_API_KEY || "dev-secret-key-geospectra",

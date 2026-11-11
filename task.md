@@ -1357,18 +1357,18 @@ The next implementation steps should be:
 
 ### Milestone 02: Database
 
--   [ ] Configure PostgreSQL.
--   [ ] Initialize Prisma.
--   [ ] Define User, Area and Analysis.
--   [ ] Run first migration.
--   [ ] Test database operations.
+-   [x] Configure PostgreSQL.
+-   [x] Initialize Prisma.
+-   [x] Define User, Area and Analysis.
+-   [x] Run first migration.
+-   [x] Test database operations.
 
 ### Milestone 03: Job processing
 
--   [ ] Add Redis.
--   [ ] Add BullMQ.
--   [ ] Implement analysis job creation.
--   [ ] Implement worker and job status updates.
+-   [x] Add Redis.
+-   [x] Add BullMQ.
+-   [x] Implement analysis job creation.
+-   [x] Implement worker and job status updates.
 
 ### Milestone 04: First real hyperspectral scene
 
