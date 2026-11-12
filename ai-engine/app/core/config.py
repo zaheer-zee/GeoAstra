@@ -1,4 +1,4 @@
-from typing import List, Union
+from typing import List, Union, Optional
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 import json
@@ -14,6 +14,20 @@ class Settings(BaseSettings):
         "http://localhost:3000",
     ]
     INTERNAL_API_KEY: str = "dev-secret-key-geospectra"
+
+    # AI Provider Settings
+    NVIDIA_NIM_API_KEY: Optional[str] = None
+    NVIDIA_NIM_MODEL_ID: str = "nvidia/llama-3.1-nemotron-70b-instruct"
+
+    HUGGINGFACE_ACCESS_TOKEN: Optional[str] = None
+    HUGGINGFACE_MODEL_ID: str = "meta-llama/Llama-3.2-3B-Instruct"
+
+    NARAROUTER_API_KEY: Optional[str] = None
+    NARAROUTER_MODEL_ID: str = "deepseek/deepseek-chat"
+
+    # NASA Earthdata
+    EARTHDATA_USERNAME: Optional[str] = None
+    EARTHDATA_TOKEN: Optional[str] = None
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
@@ -35,4 +49,3 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
-

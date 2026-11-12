@@ -1388,12 +1388,12 @@ The next implementation steps should be:
 
 ### Milestone 06: AI providers
 
--   [ ] Verify Hugging Face model and inference access.
--   [ ] Verify NaraRouter model and quota.
--   [ ] Verify NVIDIA NIM endpoint and model access.
--   [ ] Implement provider adapters.
--   [ ] Add parallel orchestration and failure isolation.
--   [ ] Compare explanations without treating them as ground truth.
+-   [x] Verify Hugging Face model and inference access.
+-   [x] Verify NaraRouter model and quota.
+-   [x] Verify NVIDIA NIM endpoint and model access.
+-   [x] Implement provider adapters.
+-   [x] Add parallel orchestration and failure isolation.
+-   [x] Compare explanations without treating them as ground truth.
 
 ### Milestone 07: Complete backend workflow
 
