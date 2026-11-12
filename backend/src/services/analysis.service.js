@@ -1,6 +1,13 @@
+import path from "path";
+import fs from "fs";
+import { fileURLToPath } from "url";
 import prisma from "../config/database.js";
 import { ApiError } from "../utils/ApiError.js";
 import { addAnalysisJob, cancelQueueJob } from "../queues/analysis.queue.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const REPO_ROOT = path.resolve(__dirname, "../../..");
 
 export const analysisService = {
   async createAnalysis(
@@ -35,7 +42,6 @@ export const analysisService = {
     });
 
     if (!scene) {
-      // In development/testing, if sceneId doesn't exist, create a baseline scene
       scene = await prisma.satelliteScene.create({
         data: {
           id: sceneId,
@@ -142,10 +148,8 @@ export const analysisService = {
       throw ApiError.badRequest(`Cannot cancel an analysis with status ${analysis.status}`);
     }
 
-    // Cancel in queue
     await cancelQueueJob(analysisId);
 
-    // Update in DB
     const cancelled = await prisma.analysis.update({
       where: { id: analysisId },
       data: {
@@ -157,5 +161,76 @@ export const analysisService = {
 
     return cancelled;
   },
-};
 
+  /**
+   * Get consolidated results (detection metrics, AI provider comparisons)
+   */
+  async getAnalysisResults(userId, analysisId) {
+    const analysis = await this.getAnalysis(userId, analysisId);
+
+    const detection = analysis.detectionResults[0] || null;
+
+    return {
+      analysisId: analysis.id,
+      status: analysis.status,
+      algorithm: analysis.algorithmConfiguration?.algorithm || "rxd",
+      startedAt: analysis.startedAt,
+      completedAt: analysis.completedAt,
+      scene: {
+        id: analysis.scene.id,
+        sensor: analysis.scene.sensor,
+        productLevel: analysis.scene.productLevel,
+      },
+      detectionResults: analysis.detectionResults,
+      providerRuns: analysis.providerRuns,
+      metrics: detection?.metricsJson || null,
+      artifacts: {
+        previewUrl: `/api/v1/analysis/${analysisId}/preview`,
+        rasterUrl: `/api/v1/analysis/${analysisId}/raster`,
+        polygonsUrl: `/api/v1/analysis/${analysisId}/polygons`,
+      },
+      aiExplanations: {
+        comparativeSummary: detection?.processingMetadata?.comparative_summary || null,
+        providerRuns: analysis.providerRuns.map((r) => ({
+          provider: r.provider,
+          model: r.model,
+          status: r.status,
+          latencyMs: r.latencyMs,
+          response: r.responseJson?.text || null,
+          error: r.error,
+        })),
+      },
+    };
+  },
+
+  /**
+   * Helper to resolve artifact file path on disk
+   */
+  async getArtifactFilePath(userId, analysisId, type) {
+    const analysis = await this.getAnalysis(userId, analysisId);
+    const detection = analysis.detectionResults[0];
+
+    let relativeKey = null;
+    if (type === "preview") {
+      relativeKey = detection?.previewStorageKey || `storage/previews/${analysisId}_preview.png`;
+    } else if (type === "raster") {
+      relativeKey = detection?.rasterStorageKey || `storage/output/${analysisId}_score.tif`;
+    } else if (type === "polygons") {
+      relativeKey = detection?.vectorStorageKey || `storage/output/${analysisId}_polygons.geojson`;
+    } else {
+      throw ApiError.badRequest(`Unknown artifact type '${type}'`);
+    }
+
+    const absolutePath = path.resolve(REPO_ROOT, relativeKey);
+    // Path traversal check
+    if (!absolutePath.startsWith(REPO_ROOT)) {
+      throw ApiError.forbidden("Access denied: Invalid file path");
+    }
+
+    if (!fs.existsSync(absolutePath)) {
+      throw ApiError.notFound(`Artifact '${type}' not found on disk`);
+    }
+
+    return absolutePath;
+  },
+};

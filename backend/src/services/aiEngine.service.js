@@ -40,5 +40,20 @@ export const aiEngineService = {
     const response = await client.post("/internal/v1/analysis/run", payload);
     return response.data;
   },
-};
 
+  /**
+   * Trigger multi-provider AI explanation on ai-engine
+   */
+  async explainAnalysis(payload) {
+    const response = await client.post("/internal/v1/ai/explain", payload);
+    return response.data;
+  },
+
+  /**
+   * Query registered AI providers and their configuration status
+   */
+  async getAiProviders() {
+    const response = await client.get("/internal/v1/ai/providers");
+    return response.data;
+  },
+};

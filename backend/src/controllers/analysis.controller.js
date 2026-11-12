@@ -39,16 +39,42 @@ export const analysisController = {
 
   async getResults(req, res, next) {
     try {
-      const analysis = await analysisService.getAnalysis(req.user.id, req.params.analysisId);
+      const results = await analysisService.getAnalysisResults(req.user.id, req.params.analysisId);
       return res.status(200).json({
         success: true,
-        data: {
-          analysisId: analysis.id,
-          status: analysis.status,
-          detectionResults: analysis.detectionResults,
-          providerRuns: analysis.providerRuns,
-        },
+        data: results,
       });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async getPreview(req, res, next) {
+    try {
+      const filePath = await analysisService.getArtifactFilePath(req.user.id, req.params.analysisId, "preview");
+      res.setHeader("Content-Type", "image/png");
+      return res.sendFile(filePath);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async getRaster(req, res, next) {
+    try {
+      const filePath = await analysisService.getArtifactFilePath(req.user.id, req.params.analysisId, "raster");
+      res.setHeader("Content-Type", "image/tiff");
+      res.setHeader("Content-Disposition", `attachment; filename="${req.params.analysisId}_score.tif"`);
+      return res.sendFile(filePath);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async getPolygons(req, res, next) {
+    try {
+      const filePath = await analysisService.getArtifactFilePath(req.user.id, req.params.analysisId, "polygons");
+      res.setHeader("Content-Type", "application/geo+json");
+      return res.sendFile(filePath);
     } catch (error) {
       next(error);
     }
@@ -67,4 +93,3 @@ export const analysisController = {
     }
   },
 };
-

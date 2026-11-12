@@ -1372,11 +1372,11 @@ The next implementation steps should be:
 
 ### Milestone 04: First real hyperspectral scene
 
--   [ ] Choose EnMAP or NASA EMIT.
--   [ ] Find a scene with suitable coverage and metadata.
--   [ ] Access/download the scientific raster.
--   [ ] Validate dimensions, CRS, wavelength metadata and NoData.
--   [ ] Save an immutable input manifest.
+-   [x] Choose EnMAP or NASA EMIT.
+-   [x] Find a scene with suitable coverage and metadata.
+-   [x] Access/download the scientific raster.
+-   [x] Validate dimensions, CRS, wavelength metadata and NoData.
+-   [x] Save an immutable input manifest.
 
 ### Milestone 05: First scientific result
 
@@ -1397,11 +1397,11 @@ The next implementation steps should be:
 
 ### Milestone 07: Complete backend workflow
 
--   [ ] End-to-end scene-to-result job.
--   [ ] Persist metadata and outputs.
--   [ ] Add result APIs.
--   [ ] Add integration tests.
--   [ ] Document setup and deployment.
+-   [x] End-to-end scene-to-result job.
+-   [x] Persist metadata and outputs.
+-   [x] Add result APIs.
+-   [x] Add integration tests.
+-   [x] Document setup and deployment.
 
 ------------------------------------------------------------------------
 

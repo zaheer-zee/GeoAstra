@@ -48,6 +48,15 @@ export const startAnalysisWorker = () => {
         });
         await job.updateProgress(60);
 
+        // Fetch optional target spectrum if targetSignatureId provided
+        let targetSpectrum = null;
+        if (targetSignatureId) {
+          const sig = await prisma.targetSignature.findUnique({ where: { id: targetSignatureId } });
+          if (sig && Array.isArray(sig.values)) {
+            targetSpectrum = sig.values;
+          }
+        }
+
         // Call internal Python scientific service
         let engineResult;
         try {
@@ -58,6 +67,7 @@ export const startAnalysisWorker = () => {
             algorithm: algorithm || "rxd",
             algorithm_configuration: algorithmConfiguration || {},
             target_signature_id: targetSignatureId || null,
+            target_spectrum: targetSpectrum,
           });
         } catch (engineErr) {
           logger.warn("ai-engine call failed, proceeding with fallback mock output for development", {
@@ -75,12 +85,26 @@ export const startAnalysisWorker = () => {
           };
         }
 
-        // Stage 4: GENERATING_OUTPUTS
+        // Stage 4: GENERATING_OUTPUTS & AI EXPLANATION
         await prisma.analysis.update({
           where: { id: analysisId },
           data: { status: "GENERATING_OUTPUTS" },
         });
         await job.updateProgress(80);
+
+        // Call multi-provider AI explanation
+        let aiExplanation = null;
+        try {
+          aiExplanation = await aiEngineService.explainAnalysis({
+            analysis_id: analysisId,
+            algorithm: engineResult.algorithm || algorithm || "rxd",
+            metrics: engineResult.metrics || {},
+            dataset: { dataset_name: sceneId, source: "scene_archive" },
+            task: "analysis_explanation",
+          });
+        } catch (aiErr) {
+          logger.warn("AI explanation generation skipped or failed", { error: aiErr.message });
+        }
 
         // Persist DetectionResult record
         await prisma.detectionResult.create({
@@ -95,9 +119,29 @@ export const startAnalysisWorker = () => {
             processingMetadata: {
               completed_via: "bullmq_analysis_worker",
               worker_node: process.env.NODE_ENV || "development",
+              comparative_summary: aiExplanation?.comparative_summary || null,
             },
           },
         });
+
+        // Persist ProviderRun records if AI explanation succeeded
+        if (aiExplanation && Array.isArray(aiExplanation.results)) {
+          for (const pRes of aiExplanation.results) {
+            await prisma.providerRun.create({
+              data: {
+                analysisId,
+                provider: pRes.provider,
+                model: pRes.model,
+                task: pRes.task,
+                status: pRes.status,
+                responseJson: pRes.response ? { text: pRes.response } : null,
+                latencyMs: pRes.latency_seconds ? Math.round(pRes.latency_seconds * 1000) : null,
+                usageJson: pRes.usage || null,
+                error: pRes.error || null,
+              },
+            });
+          }
+        }
 
         // Stage 5: COMPLETED
         const completedAnalysis = await prisma.analysis.update({
