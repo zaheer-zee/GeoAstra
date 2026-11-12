@@ -1380,11 +1380,11 @@ The next implementation steps should be:
 
 ### Milestone 05: First scientific result
 
--   [ ] Implement RXD.
--   [ ] Generate a score raster.
--   [ ] Preserve georeferencing.
--   [ ] Evaluate and document limitations.
--   [ ] Add target detection after the anomaly baseline works.
+-   [x] Implement RXD.
+-   [x] Generate a score raster.
+-   [x] Preserve georeferencing.
+-   [x] Evaluate and document limitations.
+-   [x] Add target detection after the anomaly baseline works.
 
 ### Milestone 06: AI providers
 

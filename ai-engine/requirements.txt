@@ -13,3 +13,5 @@ rasterio>=1.4.0
 pyproj>=3.6.0
 h5py>=3.11.0
 netCDF4>=1.7.0
+pillow>=11.0.0
+matplotlib>=3.9.0
