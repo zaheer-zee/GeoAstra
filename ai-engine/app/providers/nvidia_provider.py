@@ -131,3 +131,4 @@ class NvidiaNimProvider(BaseAIProvider):
                 error=f"NVIDIA NIM exception: {str(e)}",
                 latency_seconds=latency,
             )
+

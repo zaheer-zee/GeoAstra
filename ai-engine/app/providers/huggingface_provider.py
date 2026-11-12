@@ -131,3 +131,4 @@ class HuggingFaceProvider(BaseAIProvider):
                 error=f"Hugging Face exception: {str(e)}",
                 latency_seconds=latency,
             )
+

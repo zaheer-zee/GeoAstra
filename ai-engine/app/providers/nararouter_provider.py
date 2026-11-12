@@ -98,3 +98,4 @@ class NaraRouterProvider(BaseAIProvider):
                 error=f"NaraRouter exception: {str(e)}",
                 latency_seconds=latency,
             )
+

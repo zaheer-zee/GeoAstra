@@ -51,3 +51,4 @@ class BaseAIProvider(ABC):
             f"2. Explicitly note that anomaly scores indicate statistical deviation from the local/global background, not a definitive chemical label.\n"
             f"3. Keep the summary under 120 words, concise and professional."
         )
+
