@@ -1,25 +1,17 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { AlertTriangle, ArrowDown, ArrowUp, ArrowUpDown, Clock3, RotateCcw, XCircle } from "lucide-react";
+import { ArrowUpDown, Clock3, XCircle } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { ConfirmDialog } from "@/components/feedback/ConfirmDialog";
 import { useToast } from "@/hooks/useToast";
-import { AnalysisJobRecord } from "@/features/analysis/types";
-import { useDemoAnalysisJobStore } from "./store/demoAnalysisJobStore";
+import { AnalysisJobRecord, DEFAULT_RXD_SETTINGS } from "@/features/analysis/types";
+import { analysisApi } from "@/api/analysisApi";
 
 type JobFilter = "all" | AnalysisJobRecord["status"];
 const FILTERS: JobFilter[] = ["all", "queued", "processing", "completed", "failed", "cancelled"];
-
-function formatElapsed(seconds: number): string {
-  const safe = Math.max(0, Math.floor(seconds));
-  const hours = Math.floor(safe / 3600);
-  const minutes = Math.floor((safe % 3600) / 60);
-  const remaining = safe % 60;
-  return [hours, minutes, remaining].map((part) => String(part).padStart(2, "0")).join(":");
-}
 
 function statusVariant(status: AnalysisJobRecord["status"]): "warning" | "primary" | "success" | "danger" | "outline" {
   if (status === "queued") return "warning";
@@ -33,14 +25,87 @@ function formatDate(value: string): string {
   return new Date(value).toLocaleString();
 }
 
+function mapBackendJob(a: any): AnalysisJobRecord {
+  const statusStr = (a.status || "").toLowerCase();
+  let uiStatus: AnalysisJobRecord["status"] = "queued";
+  if (["acquiring_data", "preprocessing", "running_algorithms", "generating_outputs"].includes(statusStr)) {
+    uiStatus = "processing";
+  } else if (statusStr === "completed") {
+    uiStatus = "completed";
+  } else if (statusStr === "failed") {
+    uiStatus = "failed";
+  } else if (statusStr === "cancelled") {
+    uiStatus = "cancelled";
+  }
+
+  const progress =
+    a.status === "COMPLETED" ? 100 :
+    a.status === "GENERATING_OUTPUTS" ? 85 :
+    a.status === "RUNNING_ALGORITHMS" ? 65 :
+    a.status === "PREPROCESSING" ? 45 :
+    a.status === "ACQUIRING_DATA" ? 25 : 10;
+
+  return {
+    id: a.id,
+    name: `${(a.algorithm || "RXD").toUpperCase()} - ${a.scene?.sensor || a.sceneId || "Hyperspectral"} Detection`,
+    status: uiStatus,
+    demo: false as any,
+    submittedAt: a.createdAt || new Date().toISOString(),
+    startedAt: a.startedAt,
+    completedAt: a.completedAt,
+    failedAt: a.status === "FAILED" ? a.completedAt : null,
+    cancelledAt: a.status === "CANCELLED" ? a.completedAt : null,
+    elapsedSeconds: a.completedAt && a.startedAt ? (Date.parse(a.completedAt) - Date.parse(a.startedAt)) / 1000 : 15,
+    progress,
+    currentStage: a.status === "COMPLETED" ? "completed" : a.status === "FAILED" ? "failed" : a.status === "PREPROCESSING" ? "preprocessing" : "running",
+    failureStage: null,
+    stoppedAtStage: null,
+    failureMessage: a.errorMessage || null,
+    retryOf: null,
+    logs: [
+      { timestamp: a.createdAt, message: `Analysis record initialized in database with status ${a.status}.` },
+      ...(a.startedAt ? [{ timestamp: a.startedAt, message: "Worker dequeued job and initialized Python processing pipeline." }] : []),
+      ...(a.completedAt ? [{ timestamp: a.completedAt, message: `Execution finalized with status ${a.status}.` }] : []),
+    ],
+    configuration: {
+      aoiId: a.areaId,
+      sceneId: a.sceneId,
+      algorithm: a.algorithm || "rxd",
+      targetSignatureId: a.targetSignatureId,
+      algorithmSettings: { algorithm: "rxd", parameters: DEFAULT_RXD_SETTINGS },
+      normalization: "z-score",
+      pca: { enabled: false, components: 10 },
+      thresholdPercentile: 98,
+    },
+    aoiName: a.area?.name || "Target AOI",
+    sceneName: a.scene?.externalSceneId || a.sceneId || "Hyperspectral Scene",
+    targetSignatureName: a.targetSignatureId || null,
+  };
+}
+
 export const JobsPage: React.FC = () => {
-  const jobs = useDemoAnalysisJobStore((state) => state.jobs);
-  const cancelJob = useDemoAnalysisJobStore((state) => state.cancelJob);
-  const retryJob = useDemoAnalysisJobStore((state) => state.retryJob);
   const toast = useToast();
+  const [jobs, setJobs] = useState<AnalysisJobRecord[]>([]);
   const [filter, setFilter] = useState<JobFilter>("all");
   const [newestFirst, setNewestFirst] = useState(true);
   const [confirmAction, setConfirmAction] = useState<{ type: "cancel" | "retry"; job: AnalysisJobRecord } | null>(null);
+
+  const fetchLiveJobs = async () => {
+    try {
+      const res = await analysisApi.listAnalyses();
+      const rawList = res?.analyses || [];
+      const mapped = rawList.map(mapBackendJob);
+      setJobs(mapped);
+    } catch (err: any) {
+      console.error("Failed to fetch live analyses from API:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchLiveJobs();
+    const interval = setInterval(fetchLiveJobs, 4000);
+    return () => clearInterval(interval);
+  }, []);
 
   const counts = useMemo(() => ({
     all: jobs.length,
@@ -50,23 +115,22 @@ export const JobsPage: React.FC = () => {
     failed: jobs.filter((job) => job.status === "failed").length,
     cancelled: jobs.filter((job) => job.status === "cancelled").length,
   }), [jobs]);
+
   const visibleJobs = useMemo(() => jobs
     .filter((job) => filter === "all" || job.status === filter)
     .sort((a, b) => (Date.parse(b.submittedAt) - Date.parse(a.submittedAt)) * (newestFirst ? 1 : -1)), [filter, jobs, newestFirst]);
 
-  const confirm = () => {
+  const confirm = async () => {
     if (!confirmAction) return;
     try {
       if (confirmAction.type === "cancel") {
-        if (!cancelJob(confirmAction.job.id)) throw new Error("This job is no longer eligible for cancellation.");
-        toast.success("Demo job cancelled", `${confirmAction.job.id} · simulated cancellation only.`);
-      } else {
-        const retry = retryJob(confirmAction.job.id);
-        toast.success("Demo retry queued", `${retry.id} · copied configuration from the original job.`);
+        await analysisApi.cancelAnalysis(confirmAction.job.id);
+        toast.success("Job Cancelled", `${confirmAction.job.id} was marked as cancelled.`);
       }
       setConfirmAction(null);
+      fetchLiveJobs();
     } catch (error) {
-      toast.error("Job action failed", error instanceof Error ? error.message : "The demo job could not be updated.");
+      toast.error("Job action failed", error instanceof Error ? error.message : "The job could not be updated.");
     }
   };
 
@@ -75,14 +139,9 @@ export const JobsPage: React.FC = () => {
       <PageHeader
         category="PIPELINE ORCHESTRATION"
         title="Processing Jobs"
-        subtitle="Track frontend-only demo lifecycle records created by Analysis Studio. No worker or scientific processing is connected."
-        actions={<Badge variant="warning" size="md" dot>DEMO JOBS</Badge>}
+        subtitle="Monitor live hyperspectral analysis jobs running across the BullMQ Redis queue and Python execution engine."
+        actions={<Badge variant="success" size="md" dot>LIVE QUEUE</Badge>}
       />
-
-      <div className="flex items-start gap-2 rounded border border-status-warning/30 bg-status-warning/5 p-3 text-xs text-content-secondary">
-        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-status-warning" />
-        <p><strong className="text-status-warning">Simulated activity only.</strong> Progress and lifecycle messages are controlled frontend demonstrations; no algorithms execute and no scientific outputs are produced.</p>
-      </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         {FILTERS.map((status) => (
@@ -101,146 +160,93 @@ export const JobsPage: React.FC = () => {
         ))}
       </div>
 
-      <Card variant="elevated">
-        <div className="flex flex-col gap-3 border-b border-border-subtle p-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-sm font-semibold text-content-primary">Job queue <span className="ml-1 font-mono text-content-muted">({visibleJobs.length})</span></h2>
-            <p className="mt-1 text-2xs text-content-muted">All rows are loaded from the shared Analysis Studio job store.</p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="flex flex-wrap gap-1 rounded border border-border-subtle bg-surface-secondary/40 p-1">
-              {FILTERS.map((status) => (
-                <button
-                  key={status}
-                  type="button"
-                  aria-pressed={filter === status}
-                  onClick={() => setFilter(status)}
-                  className={`rounded px-2 py-1 text-2xs font-mono uppercase ${
-                    filter === status ? "bg-surface-elevated text-accent-primary" : "text-content-muted hover:text-content-primary"
-                  }`}
-                >
-                  {status} <span className="text-content-muted">{counts[status]}</span>
-                </button>
-              ))}
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setNewestFirst((current) => !current)}
-              leftIcon={newestFirst ? <ArrowDown className="h-3.5 w-3.5" /> : <ArrowUp className="h-3.5 w-3.5" />}
-              aria-label={`Sort by submission date, currently ${newestFirst ? "newest first" : "oldest first"}`}
-            >
-              {newestFirst ? "Newest first" : "Oldest first"}
-            </Button>
-          </div>
-        </div>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-y border-border-subtle py-2">
+        <span className="font-mono text-xs text-content-muted">{visibleJobs.length} {visibleJobs.length === 1 ? "job" : "jobs"} matched</span>
+        <Button variant="ghost" size="sm" leftIcon={<ArrowUpDown className="h-3.5 w-3.5" />} onClick={() => setNewestFirst((current) => !current)}>
+          {newestFirst ? "Newest first" : "Oldest first"}
+        </Button>
+      </div>
 
-        {visibleJobs.length === 0 ? (
-          <CardContent className="flex flex-col items-center gap-2 py-12 text-center">
-            <div className="rounded-full border border-border-subtle bg-surface-secondary p-3"><ArrowUpDown className="h-5 w-5 text-content-muted" /></div>
-            <p className="text-sm font-medium text-content-primary">{jobs.length === 0 ? "No demo jobs yet" : `No ${filter} jobs`}</p>
+      {visibleJobs.length === 0 ? (
+        <Card variant="elevated">
+          <CardContent className="flex flex-col items-center gap-3 px-5 py-14 text-center">
+            <Clock3 className="h-8 w-8 text-content-muted" />
+            <h3 className="text-sm font-semibold text-content-primary">No jobs found</h3>
             <p className="max-w-md text-xs text-content-muted">
-              {jobs.length === 0 ? "Launch a configuration from Analysis Studio to create a simulated job record." : "Choose another status filter to see matching jobs."}
+              {filter === "all" ? "No analyses have been launched yet. Create an analysis from the studio to start processing." : `No jobs with status "${filter}".`}
             </p>
-            {filter !== "all" && <Button variant="outline" size="sm" onClick={() => setFilter("all")}>Clear filter</Button>}
-            {jobs.length === 0 && <Link className="text-xs text-accent-primary hover:underline" to="/analysis/new">Open Analysis Studio</Link>}
+            <Link to="/analysis/new">
+              <Button size="sm">Launch New Analysis</Button>
+            </Link>
           </CardContent>
-        ) : (
-          <>
-            <div className="hidden overflow-x-auto lg:block">
-              <table className="w-full min-w-[980px] text-left">
-                <thead className="bg-surface-secondary/40 text-2xs font-mono uppercase tracking-wider text-content-muted">
-                  <tr>
-                    <th className="px-4 py-3">Job</th><th className="px-4 py-3">Inputs</th><th className="px-4 py-3">Algorithm</th>
-                    <th className="px-4 py-3">Submitted</th><th className="px-4 py-3">Status / progress</th><th className="px-4 py-3">Elapsed</th><th className="px-4 py-3">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border-subtle">
-                  {visibleJobs.map((job) => (
-                    <tr key={job.id} className="align-top hover:bg-surface-elevated/20">
-                      <td className="px-4 py-3">
-                        <Link to={`/jobs/${encodeURIComponent(job.id)}`} className="font-mono text-xs font-semibold text-accent-primary hover:underline">{job.id}</Link>
-                        <p className="mt-1 text-xs text-content-primary">{job.name}</p>
-                        <Badge className="mt-1" variant="warning">DEMO</Badge>
-                      </td>
-                      <td className="px-4 py-3 text-xs">
-                        <p className="text-content-primary">{job.aoiName}</p><p className="mt-1 text-2xs text-content-muted">AOI {job.configuration.aoiId}</p>
-                        <p className="mt-2 text-content-primary">{job.sceneName}</p><p className="mt-1 text-2xs text-content-muted">Scene {job.configuration.sceneId}</p>
-                      </td>
-                      <td className="px-4 py-3 text-xs uppercase text-content-primary">{job.configuration.algorithm}</td>
-                      <td className="px-4 py-3 text-2xs text-content-secondary">{formatDate(job.submittedAt)}</td>
-                      <td className="px-4 py-3">
-                        <Badge variant={statusVariant(job.status)} dot={job.status === "processing"}>{job.status}</Badge>
-                        <div className="mt-2 min-w-32">
-                          <div className="mb-1 flex justify-between text-2xs font-mono text-content-muted"><span>{job.currentStage}</span><span>{job.progress}%</span></div>
-                          <div className="h-1.5 overflow-hidden rounded-full bg-surface-secondary"><div className="h-full rounded-full bg-accent-primary transition-all" style={{ width: `${job.progress}%` }} /></div>
-                        </div>
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-content-secondary"><Clock3 className="mr-1 inline h-3.5 w-3.5" />{formatElapsed(job.elapsedSeconds)}</td>
-                      <td className="px-4 py-3">
-                        <JobActions job={job} onCancel={() => setConfirmAction({ type: "cancel", job })} onRetry={() => setConfirmAction({ type: "retry", job })} />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div className="divide-y divide-border-subtle lg:hidden">
-              {visibleJobs.map((job) => (
-                <article key={job.id} className="space-y-3 p-4">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Link to={`/jobs/${encodeURIComponent(job.id)}`} className="break-all font-mono text-xs font-semibold text-accent-primary hover:underline">{job.id}</Link>
-                    <Badge variant="warning">DEMO</Badge><Badge variant={statusVariant(job.status)}>{job.status}</Badge>
+        </Card>
+      ) : (
+        <div className="space-y-3">
+          {visibleJobs.map((job) => (
+            <Card key={job.id} variant="elevated" className="overflow-hidden transition-colors hover:border-border-strong">
+              <CardContent className="p-4 sm:p-5">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="space-y-1.5 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-mono text-xs font-semibold text-accent-primary">{job.id}</span>
+                      <Badge variant={statusVariant(job.status)} size="sm">{job.status.toUpperCase()}</Badge>
+                    </div>
+                    <h3 className="text-sm font-semibold text-content-primary truncate">{job.name}</h3>
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-2xs text-content-muted">
+                      <span>AOI: <strong className="text-content-secondary">{job.aoiName}</strong></span>
+                      <span>Scene: <strong className="text-content-secondary">{job.sceneName}</strong></span>
+                      <span>Submitted: <strong className="text-content-secondary">{formatDate(job.submittedAt)}</strong></span>
+                    </div>
                   </div>
-                  <p className="text-sm text-content-primary">{job.name}</p>
-                  <div className="grid grid-cols-2 gap-2 text-2xs">
-                    <JobValue label="AOI" value={job.aoiName} />
-                    <JobValue label="Scene" value={job.sceneName} />
-                    <JobValue label="Algorithm" value={job.configuration.algorithm.toUpperCase()} />
-                    <JobValue label="Elapsed" value={formatElapsed(job.elapsedSeconds)} />
-                    <JobValue label="Submitted" value={formatDate(job.submittedAt)} />
-                    <JobValue label="Progress" value={`${job.progress}% · ${job.currentStage}`} />
-                  </div>
-                  <div className="flex items-center gap-2 text-2xs font-mono text-content-muted"><span>{job.currentStage}</span><span>{job.progress}%</span><div className="h-1.5 min-w-20 flex-1 overflow-hidden rounded-full bg-surface-secondary"><div className="h-full rounded-full bg-accent-primary transition-all" style={{ width: `${job.progress}%` }} /></div></div>
-                  <JobActions job={job} onCancel={() => setConfirmAction({ type: "cancel", job })} onRetry={() => setConfirmAction({ type: "retry", job })} />
-                </article>
-              ))}
-            </div>
-          </>
-        )}
-      </Card>
 
-      <ConfirmDialog
-        isOpen={Boolean(confirmAction)}
-        onClose={() => setConfirmAction(null)}
-        onConfirm={confirm}
-        isDestructive={confirmAction?.type === "cancel"}
-        title={confirmAction?.type === "cancel" ? "Cancel demo job?" : "Retry demo job?"}
-        confirmLabel={confirmAction?.type === "cancel" ? "Confirm cancellation" : "Create retry"}
-        message={confirmAction?.type === "cancel" ? (
-          <p>Cancel <span className="font-mono text-content-primary">{confirmAction.job.id}</span> while it is <strong>{confirmAction.job.status}</strong>? This only stops the simulated lifecycle.</p>
-        ) : (
-          <p>Create a new queued DEMO job using the configuration from <span className="font-mono text-content-primary">{confirmAction?.job.id}</span>? The original job and its history will be preserved.</p>
-        )}
-      />
+                  <div className="flex flex-wrap items-center gap-2">
+                    {job.status === "completed" && (
+                      <Link to={`/results/${encodeURIComponent(job.id)}`}>
+                        <Button size="sm" variant="primary">View Results</Button>
+                      </Link>
+                    )}
+                    {(job.status === "queued" || job.status === "processing") && (
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        leftIcon={<XCircle className="h-3.5 w-3.5" />}
+                        onClick={() => setConfirmAction({ type: "cancel", job })}
+                      >
+                        Cancel Job
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Progress bar for active jobs */}
+                {job.status === "processing" && (
+                  <div className="mt-3 space-y-1">
+                    <div className="flex justify-between text-2xs font-mono text-content-muted">
+                      <span>Pipeline execution in progress</span>
+                      <span>{job.progress}%</span>
+                    </div>
+                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-secondary">
+                      <div className="h-full bg-accent-primary transition-all duration-500" style={{ width: `${job.progress}%` }} />
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {confirmAction && (
+        <ConfirmDialog
+          isOpen={Boolean(confirmAction)}
+          title="Cancel Analysis Job"
+          message={`Are you sure you want to cancel analysis ${confirmAction.job.id}? The worker will gracefully terminate the pipeline.`}
+          confirmLabel="Cancel Job"
+          isDestructive={true}
+          onConfirm={confirm}
+          onClose={() => setConfirmAction(null)}
+        />
+      )}
     </div>
   );
 };
-
-function JobActions({ job, onCancel, onRetry }: { job: AnalysisJobRecord; onCancel: () => void; onRetry: () => void }) {
-  return (
-    <div className="flex flex-wrap items-center gap-2">
-      <Link to={`/jobs/${encodeURIComponent(job.id)}`} className="text-xs font-medium text-accent-primary hover:underline">Details</Link>
-      {(job.status === "queued" || job.status === "processing") && (
-        <Button size="xs" variant="ghost" leftIcon={<XCircle className="h-3 w-3" />} onClick={onCancel}>Cancel</Button>
-      )}
-      {(job.status === "failed" || job.status === "cancelled") && (
-        <Button size="xs" variant="outline" leftIcon={<RotateCcw className="h-3 w-3" />} onClick={onRetry}>Retry</Button>
-      )}
-    </div>
-  );
-}
-
-function JobValue({ label, value }: { label: string; value: string }) {
-  return <div className="min-w-0"><span className="block uppercase tracking-wide text-content-muted">{label}</span><span className="mt-0.5 block break-words text-content-secondary">{value}</span></div>;
-}

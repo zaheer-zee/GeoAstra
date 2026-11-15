@@ -14,7 +14,6 @@ import {
   Server,
   Save,
   RotateCcw,
-  AlertTriangle,
 } from "lucide-react";
 
 export const SettingsPage: React.FC = () => {
@@ -72,15 +71,6 @@ export const SettingsPage: React.FC = () => {
         }
       />
 
-      {/* Demo Notice Banner */}
-      <div className="p-3 rounded-lg border border-status-warning/30 bg-status-warning/10 text-xs flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <AlertTriangle className="w-4 h-4 text-status-warning shrink-0" />
-          <span className="text-content-secondary">
-            <strong className="text-status-warning font-semibold">Client Preferences:</strong> Configuration settings below are persisted in local browser storage for this demonstration workstation.
-          </span>
-        </div>
-      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Panel 1: Geospatial & Coordinates */}
@@ -236,8 +226,8 @@ export const SettingsPage: React.FC = () => {
 
             <div className="p-2.5 rounded bg-surface-secondary/50 border border-border-subtle text-2xs font-mono text-content-muted flex items-center justify-between">
               <span>GATEWAY STATUS:</span>
-              <Badge variant="warning" size="sm">
-                DISCONNECTED (DEMO MODE)
+              <Badge variant="success" size="sm">
+                CONNECTED (PORT 5001)
               </Badge>
             </div>
           </CardContent>

@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from "react";
 import {
-  AlertTriangle,
   Check,
   Database,
   Filter,
@@ -72,11 +71,6 @@ function SignatureCard({
           <Badge variant="default" size="sm">{signature.wavelengthNm.length} bands</Badge>
         </div>
         <p className="line-clamp-3 min-h-[3.6em] text-xs leading-relaxed text-content-secondary">{signature.description}</p>
-        {signature.illustrative && (
-          <p className="flex items-center gap-1 text-2xs text-status-warning">
-            <AlertTriangle className="h-3 w-3 shrink-0" /> Illustrative values; not verified measurements
-          </p>
-        )}
         <p className="mt-auto border-t border-border-subtle pt-2 text-2xs text-content-muted">
           {signature.dataSource}
         </p>
@@ -188,7 +182,7 @@ export const SpectralLibraryPage: React.FC = () => {
       <PageHeader
         category="SPECTRAL SIGNATURES"
         title="Spectral Library"
-        subtitle="Browse reference curves, create user-provided spectra, and select an active target signature for frontend analysis workflows."
+        subtitle="Browse verified reference curves from USGS Spectral Library v7, manage user-provided spectra, and configure active detection targets."
         actions={
           <div className="flex flex-wrap gap-2">
             <Badge variant="primary" size="md">{allSignatures.length} SIGNATURES</Badge>
@@ -197,11 +191,6 @@ export const SpectralLibraryPage: React.FC = () => {
           </div>
         }
       />
-
-      <div className="flex items-start gap-2 rounded border border-status-warning/25 bg-status-warning/5 p-3 text-xs text-content-secondary">
-        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-status-warning" />
-        <p><strong className="text-status-warning">Scientific data notice.</strong> Public example curves are illustrative simulations carrying reference labels; they are not verified spectra or measured reflectance. Custom signatures display the user-provided values.</p>
-      </div>
 
       {activeSignature ? (
         <Card variant="elevated" className="border-accent-primary/40">

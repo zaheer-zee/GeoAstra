@@ -81,7 +81,7 @@ export const AuthBranding: React.FC = () => {
       <div className="relative z-10 pt-4 border-t border-border-subtle/60 flex items-center justify-between text-2xs font-mono text-content-muted">
         <div className="flex items-center gap-2">
           <Shield className="w-3.5 h-3.5 text-accent-primary" />
-          <span>SESSION AUTH PROTOCOL: CLIENT DEMO</span>
+          <span>SESSION AUTH PROTOCOL: HS256 JWT</span>
         </div>
         <span>RESTRICTED ACCESS</span>
       </div>

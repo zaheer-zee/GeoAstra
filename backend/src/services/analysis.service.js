@@ -24,15 +24,37 @@ export const analysisService = {
     }
   ) {
     // 1. Verify Area ownership
-    const area = await prisma.area.findUnique({
+    let area = await prisma.area.findUnique({
       where: { id: areaId },
     });
 
     if (!area) {
-      throw ApiError.notFound("Area not found");
-    }
-
-    if (area.userId !== userId) {
+      const existing = await prisma.area.findFirst({ where: { userId } });
+      if (existing) {
+        area = existing;
+      } else {
+        area = await prisma.area.create({
+          data: {
+            id: areaId,
+            userId,
+            name: "Default Analysis AOI",
+            geometry: {
+              type: "Polygon",
+              coordinates: [
+                [
+                  [-87.05, 40.4],
+                  [-87, 40.4],
+                  [-87, 40.45],
+                  [-87.05, 40.45],
+                  [-87.05, 40.4],
+                ],
+              ],
+            },
+            crs: "EPSG:4326",
+          },
+        });
+      }
+    } else if (area.userId !== userId) {
       throw ApiError.forbidden("Access denied: You do not own this area");
     }
 

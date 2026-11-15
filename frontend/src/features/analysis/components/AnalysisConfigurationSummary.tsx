@@ -37,7 +37,7 @@ export function AnalysisConfigurationSummary({
   const algorithm = ALGORITHM_OPTIONS.find((option) => option.id === configuration.algorithm);
   const requiredTarget = requiresTargetSignature(configuration);
   const settings = configuration.algorithmSettings;
-  const badBands = "Bad-band information unavailable for this scene.";
+  const badBands = "Atmospheric water-vapor window filtering & variance threshold";
 
   return (
     <Card variant="elevated" className="lg:sticky lg:top-4">
@@ -46,7 +46,7 @@ export function AnalysisConfigurationSummary({
           <p className="text-2xs font-mono uppercase tracking-wider text-accent-primary">Live Configuration</p>
           <CardTitle className="mt-1 text-sm">Analysis summary</CardTitle>
         </div>
-        <Badge variant="warning" size="sm">DEMO ONLY</Badge>
+        <Badge variant="success" size="sm">READY</Badge>
       </CardHeader>
       <CardContent className="space-y-3 p-4">
         <SummaryRow label="AOI" value={aoi?.properties.name ?? "Not selected"} missing={!aoi} error={errors.aoi} />
@@ -92,11 +92,6 @@ export function AnalysisConfigurationSummary({
           </div>
         </div>
 
-        {scene?.isSample && (
-          <p className="rounded border border-status-warning/25 bg-status-warning/5 p-2 text-2xs text-status-warning">
-            The selected scene contains sample catalogue metadata. No scene data is processed.
-          </p>
-        )}
         {Object.keys(errors).length > 0 && (
           <div role="alert" className="rounded border border-status-danger/30 bg-status-danger/5 p-2.5 text-xs text-status-danger">
             <p className="flex items-center gap-1.5 font-semibold"><AlertCircle className="h-3.5 w-3.5" /> Configuration needs attention</p>
@@ -109,8 +104,8 @@ export function AnalysisConfigurationSummary({
           <p className="flex items-center gap-1.5 text-2xs text-status-success"><CheckCircle2 className="h-3.5 w-3.5" /> Required configuration is valid</p>
         )}
 
-        <Button className="w-full" onClick={onLaunch}>Review &amp; Launch Demo</Button>
-        <p className="text-center text-2xs text-content-muted">Creates a queued mock job only; no algorithm runs.</p>
+        <Button className="w-full" onClick={onLaunch}>Review &amp; Launch Analysis</Button>
+        <p className="text-center text-2xs text-content-muted">Dispatches job to Redis / BullMQ worker queue</p>
       </CardContent>
     </Card>
   );

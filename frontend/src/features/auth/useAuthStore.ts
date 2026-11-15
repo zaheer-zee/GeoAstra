@@ -4,15 +4,17 @@ import {
   AuthState,
   LoginCredentials,
   RegisterCredentials,
+  AuthSession,
 } from "./types/auth.types";
-import { mockAuthService } from "./services/mockAuthService";
+import { authApi } from "@/api/authApi";
+import { TOKEN_STORAGE_KEY } from "@/api/client";
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   token: null,
   session: null,
   isAuthenticated: false,
-  isLoading: true, // Start in loading state while checking session
+  isLoading: true,
   isSubmitting: false,
   error: null,
   rememberMe: true,
@@ -20,19 +22,8 @@ export const useAuthStore = create<AuthState>((set) => ({
   restoreSession: async (): Promise<boolean> => {
     try {
       set({ isLoading: true });
-      const session = await mockAuthService.restoreSession();
-      if (session) {
-        set({
-          user: session.user,
-          token: session.token,
-          session,
-          isAuthenticated: true,
-          rememberMe: session.rememberMe,
-          isLoading: false,
-          error: null,
-        });
-        return true;
-      } else {
+      const token = localStorage.getItem(TOKEN_STORAGE_KEY);
+      if (!token) {
         set({
           user: null,
           token: null,
@@ -42,7 +33,36 @@ export const useAuthStore = create<AuthState>((set) => ({
         });
         return false;
       }
+
+      const res = await authApi.getMe();
+      const rawUser = res.user;
+      const user: AuthUser = {
+        id: rawUser.id,
+        name: rawUser.name,
+        email: rawUser.email,
+        role: "Analyst",
+        createdAt: rawUser.createdAt,
+      };
+
+      const session: AuthSession = {
+        token,
+        user,
+        rememberMe: true,
+        issuedAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      };
+
+      set({
+        user,
+        token,
+        session,
+        isAuthenticated: true,
+        isLoading: false,
+        error: null,
+      });
+      return true;
     } catch {
+      localStorage.removeItem(TOKEN_STORAGE_KEY);
       set({
         user: null,
         token: null,
@@ -57,17 +77,43 @@ export const useAuthStore = create<AuthState>((set) => ({
   login: async (credentials: LoginCredentials): Promise<AuthUser> => {
     try {
       set({ isSubmitting: true, error: null });
-      const session = await mockAuthService.login(credentials);
+      const res = await authApi.login({
+        email: credentials.email,
+        password: credentials.password,
+      });
+
+      const token = res.token || (res as any).accessToken || "";
+      if (token) {
+        localStorage.setItem(TOKEN_STORAGE_KEY, token);
+      }
+
+      const rawUser = res.user;
+      const user: AuthUser = {
+        id: rawUser.id,
+        name: rawUser.name,
+        email: rawUser.email,
+        role: "Analyst",
+        createdAt: rawUser.createdAt,
+      };
+
+      const session: AuthSession = {
+        token,
+        user,
+        rememberMe: credentials.rememberMe ?? true,
+        issuedAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      };
+
       set({
-        user: session.user,
-        token: session.token,
+        user,
+        token,
         session,
         isAuthenticated: true,
-        rememberMe: session.rememberMe,
+        rememberMe: credentials.rememberMe ?? true,
         isSubmitting: false,
         error: null,
       });
-      return session.user;
+      return user;
     } catch (err: any) {
       set({
         isSubmitting: false,
@@ -80,17 +126,43 @@ export const useAuthStore = create<AuthState>((set) => ({
   register: async (credentials: RegisterCredentials): Promise<AuthUser> => {
     try {
       set({ isSubmitting: true, error: null });
-      const session = await mockAuthService.register(credentials);
+      const res = await authApi.register({
+        name: credentials.name,
+        email: credentials.email,
+        password: credentials.password,
+      });
+
+      const token = res.token || (res as any).accessToken || "";
+      if (token) {
+        localStorage.setItem(TOKEN_STORAGE_KEY, token);
+      }
+
+      const rawUser = res.user;
+      const user: AuthUser = {
+        id: rawUser.id,
+        name: rawUser.name,
+        email: rawUser.email,
+        role: "Analyst",
+        createdAt: rawUser.createdAt,
+      };
+
+      const session: AuthSession = {
+        token,
+        user,
+        rememberMe: true,
+        issuedAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      };
+
       set({
-        user: session.user,
-        token: session.token,
+        user,
+        token,
         session,
         isAuthenticated: true,
-        rememberMe: session.rememberMe,
         isSubmitting: false,
         error: null,
       });
-      return session.user;
+      return user;
     } catch (err: any) {
       set({
         isSubmitting: false,
@@ -103,7 +175,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   logout: async (): Promise<void> => {
     try {
       set({ isSubmitting: true });
-      await mockAuthService.logout();
+      localStorage.removeItem(TOKEN_STORAGE_KEY);
     } finally {
       set({
         user: null,

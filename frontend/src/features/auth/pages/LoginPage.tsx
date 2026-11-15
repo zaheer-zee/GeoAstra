@@ -12,8 +12,6 @@ import {
   Mail,
   ArrowRight,
   AlertCircle,
-  Sparkles,
-  Info,
 } from "lucide-react";
 
 export const LoginPage: React.FC = () => {
@@ -37,7 +35,6 @@ export const LoginPage: React.FC = () => {
   // Field touch state for validation
   const [touched, setTouched] = useState<{ email?: boolean; password?: boolean }>({});
   const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({});
-  const [forgotModalOpen, setForgotModalOpen] = useState(false);
 
   // Preserve redirect target from ProtectedRoute
   const from = (location.state as any)?.from?.pathname
@@ -112,24 +109,10 @@ export const LoginPage: React.FC = () => {
     }
   };
 
-  // Quick fill default demo credentials
-  const handleFillDemo = () => {
-    setEmail("analyst@geoastra.demo");
-    setPassword("GeoAstra@123");
-    setFieldErrors({});
-    clearError();
-    toast.info("Demo Credentials Loaded", "Default analyst account autofilled.");
-  };
-
-  const handleForgotPassword = (e: React.MouseEvent) => {
-    e.preventDefault();
-    setForgotModalOpen(true);
-  };
-
   return (
     <AuthLayout
       title="Welcome Back"
-      subtitle="Sign in with your analyst credentials to access calibrated datacubes and spectral processing pipelines."
+      subtitle="Sign in with your credentials to access calibrated datacubes and spectral processing pipelines."
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Global Error Banner */}
@@ -143,33 +126,13 @@ export const LoginPage: React.FC = () => {
           </div>
         )}
 
-        {/* Quick Demo Credentials Pill / Helper */}
-        <div className="p-3 rounded-lg bg-surface-secondary/60 border border-accent-primary/20 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-2xs font-mono">
-          <div className="space-y-0.5">
-            <span className="text-accent-primary font-semibold flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5" />
-              DEMO ANALYST ACCOUNT
-            </span>
-            <span className="text-content-muted block">
-              analyst@geoastra.demo • GeoAstra@123
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={handleFillDemo}
-            className="px-2.5 py-1 rounded bg-accent-primary/10 hover:bg-accent-primary/20 text-accent-primary border border-accent-primary/30 font-semibold transition-colors shrink-0 text-left sm:text-center"
-          >
-            Fill Demo Account
-          </button>
-        </div>
-
         {/* Email Field */}
         <Input
-          label="Analyst Email Address"
+          label="Email Address"
           type="email"
           name="email"
           autoComplete="email"
-          placeholder="analyst@geoastra.demo"
+          placeholder="user@organization.io"
           value={email}
           onChange={handleEmailChange}
           onBlur={() => handleBlur("email")}
@@ -180,7 +143,7 @@ export const LoginPage: React.FC = () => {
 
         {/* Password Field */}
         <PasswordInput
-          label="Workstation Password"
+          label="Password"
           name="password"
           autoComplete="current-password"
           placeholder="••••••••••••"
@@ -191,7 +154,7 @@ export const LoginPage: React.FC = () => {
           disabled={isSubmitting}
         />
 
-        {/* Remember Me & Forgot Password Row */}
+        {/* Remember Me Row */}
         <div className="flex items-center justify-between pt-1">
           <Checkbox
             label={<span className="text-xs text-content-secondary">Remember me</span>}
@@ -200,14 +163,6 @@ export const LoginPage: React.FC = () => {
             onChange={(e) => setRememberMe(e.target.checked)}
             disabled={isSubmitting}
           />
-
-          <button
-            type="button"
-            onClick={handleForgotPassword}
-            className="text-xs text-accent-primary hover:underline font-medium transition-colors"
-          >
-            Forgot password?
-          </button>
         </div>
 
         {/* Submit Button */}
@@ -234,51 +189,10 @@ export const LoginPage: React.FC = () => {
             to="/register"
             className="text-accent-primary font-semibold hover:underline transition-colors"
           >
-            Register new analyst
+            Register new account
           </Link>
         </div>
       </form>
-
-      {/* Forgot Password Informational Modal */}
-      {forgotModalOpen && (
-        <div className="fixed inset-0 z-50 bg-surface-main/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-sm rounded-lg bg-surface-elevated border border-border-strong p-5 shadow-2xl space-y-4 animate-scale-up text-left">
-            <div className="flex items-center gap-2.5 text-accent-primary">
-              <Info className="w-5 h-5" />
-              <h3 className="text-sm font-semibold text-content-primary">
-                Mock Password Recovery
-              </h3>
-            </div>
-            <p className="text-xs text-content-secondary leading-relaxed">
-              This is a client-side demonstration workstation. Password recovery emails are not sent.
-              You can log in directly using the pre-configured demo account:
-            </p>
-            <div className="p-3 rounded bg-surface-secondary/60 border border-border-subtle font-mono text-2xs space-y-1">
-              <div><span className="text-content-muted">Email:</span> <span className="text-content-primary">analyst@geoastra.demo</span></div>
-              <div><span className="text-content-muted">Password:</span> <span className="text-accent-primary">GeoAstra@123</span></div>
-            </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={() => {
-                  setForgotModalOpen(false);
-                  handleFillDemo();
-                }}
-              >
-                Use Demo Account
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setForgotModalOpen(false)}
-              >
-                Dismiss
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
     </AuthLayout>
   );
 };

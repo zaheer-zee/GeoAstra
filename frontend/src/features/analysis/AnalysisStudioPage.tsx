@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Activity,
-  AlertTriangle,
   Combine,
   Layers3,
   MapPin,
@@ -26,9 +25,10 @@ import { SceneCatalogItem } from "@/features/scenes/types";
 import { listSignatures } from "@/features/signatures/services/signatureService";
 import { useSignatureStore } from "@/features/signatures/store/signatureStore";
 import { SpectralSignature } from "@/features/signatures/types";
+import { analysisApi } from "@/api/analysisApi";
 import { AnalysisConfigurationSummary } from "./components/AnalysisConfigurationSummary";
 import { LaunchConfirmationModal } from "./components/LaunchConfirmationModal";
-import { submitMockAnalysis, validateAnalysisConfiguration } from "./services/mockAnalysisService";
+import { validateAnalysisConfiguration } from "./services/mockAnalysisService";
 import {
   ALGORITHM_OPTIONS,
   AlgorithmSettings,
@@ -190,7 +190,7 @@ export const AnalysisStudioPage: React.FC = () => {
     setConfirmationOpen(true);
   };
 
-  const confirmLaunch = () => {
+  const confirmLaunch = async () => {
     const errors = validateAnalysisConfiguration(configuration, {
       aoiIds: aois.map((aoi) => aoi.properties.id),
       sceneIds: scenes.map((scene) => scene.id),
@@ -204,18 +204,32 @@ export const AnalysisStudioPage: React.FC = () => {
     if (!selectedAoi || !selectedScene) {
       throw new Error("The selected AOI or scene is no longer available.");
     }
-    const job = submitMockAnalysis(configuration, {
-      aoiIds: aois.map((aoi) => aoi.properties.id),
-      sceneIds: scenes.map((scene) => scene.id),
-      signatureIds: signatures.map((signature) => signature.id),
-      sceneBandCount: selectedScene.spectralBands,
-    }, {
-      aoiName: selectedAoi.properties.name,
-      sceneName: selectedScene.name,
-      targetSignatureName: targetRequired ? selectedSignature?.name ?? null : null,
-    });
-    toast.success("Demo job queued", `${job.id} · no algorithm was executed.`);
-    return job;
+
+    try {
+      const algoKey = configuration.algorithm === "mf" ? "matched_filter" : configuration.algorithm;
+      const normMapped =
+        configuration.normalization === "min-max" ? "minmax" :
+        configuration.normalization === "z-score" ? "standard" :
+        configuration.normalization === "l2" ? "l2" : undefined;
+
+      const res = await analysisApi.createAnalysis({
+        areaId: configuration.aoiId ?? "",
+        sceneId: configuration.sceneId ?? "",
+        algorithm: algoKey as any,
+        targetSignatureId: targetRequired ? (configuration.targetSignatureId ?? undefined) : undefined,
+        algorithmConfiguration: {
+          normalization: normMapped,
+          pca: configuration.pca,
+          thresholdPercentile: configuration.thresholdPercentile,
+          settings: configuration.algorithmSettings.parameters as any,
+        },
+      });
+      toast.success("Analysis Dispatched", `Job ${res.analysisId} enqueued to processing pipeline.`);
+      return { id: res.analysisId };
+    } catch (err: any) {
+      toast.error("Dispatch Failed", err.message || "Failed to submit analysis job.");
+      throw err;
+    }
   };
 
   return (
@@ -223,8 +237,8 @@ export const AnalysisStudioPage: React.FC = () => {
       <PageHeader
         category="ANALYSIS STUDIO"
         title="Analysis Studio"
-        subtitle="Configure a frontend-only analysis workflow from saved AOIs, catalogue scenes, and Spectral Library targets."
-        actions={<Badge variant="warning" size="md" dot>DEMO CONFIGURATION</Badge>}
+        subtitle="Configure and dispatch hyperspectral target detection and anomaly detection pipelines to the scientific execution engine."
+        actions={<Badge variant="primary" size="md" dot>PIPELINE READY</Badge>}
       />
 
       <div className="flex flex-wrap items-center gap-2 rounded border border-border-subtle bg-surface-secondary/40 px-3 py-2 text-2xs font-mono">
@@ -236,15 +250,11 @@ export const AnalysisStudioPage: React.FC = () => {
             </span>
           </React.Fragment>
         ))}
-        <span className="ml-auto flex items-center gap-1.5 text-status-warning"><AlertTriangle className="h-3.5 w-3.5" /> No algorithm execution or real analysis results</span>
+        <span className="ml-auto flex items-center gap-1.5 text-status-success">
+          <Activity className="h-3.5 w-3.5 text-accent-primary animate-pulse" />
+          Ready for execution
+        </span>
       </div>
-
-      <Card variant="default" className="border-status-warning/25 bg-status-warning/5">
-        <CardContent className="flex items-start gap-2.5 p-3 text-xs text-content-secondary">
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-status-warning" />
-          <p><strong className="text-status-warning">Frontend demo.</strong> Settings below are configuration metadata only. Launch creates a queued mock job record; it does not read satellite pixels, run an algorithm, or produce scientific output.</p>
-        </CardContent>
-      </Card>
 
       <section aria-labelledby="input-data-heading" className="space-y-3">
         <SectionHeading id="input-data-heading" number="01" title="Input data" description="Reference existing AOI and scene records; no spatial or imagery data is duplicated." />

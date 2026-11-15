@@ -296,7 +296,7 @@ export const RegisterPage: React.FC = () => {
                 and Platform Terms
               </span>
             }
-            description="Client-side session simulation for demonstration purposes"
+            description="By registering, you accept system usage policies and operational data access standards"
             checked={acceptTerms}
             onChange={handleTermsChange}
             onBlur={() => handleBlur("acceptTerms")}

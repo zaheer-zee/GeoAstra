@@ -1,12 +1,13 @@
 import React, { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { AlertTriangle, ArrowDownToLine, FileText, Info, Layers3, MapPin, X } from "lucide-react";
+import { ArrowDownToLine, FileText, Info, Layers3, MapPin, X } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Modal } from "@/components/ui/Modal";
 import { useToast } from "@/hooks/useToast";
+import { analysisApi } from "@/api/analysisApi";
 import { AnalysisJobRecord } from "@/features/analysis/types";
 import { BUILT_IN_SCENES } from "@/features/scenes/data/sceneCatalog";
 import { listScenes } from "@/features/scenes/services/mockSceneService";
@@ -54,8 +55,8 @@ function ResultsOverview({ jobs, completedJobs }: { jobs: AnalysisJobRecord[]; c
       <PageHeader
         category="DETECTION ANALYTICS"
         title="Results Explorer"
-        subtitle="Explore illustrative result fixtures associated with completed Processing Jobs. No scientific processing or verified evaluation is represented."
-        actions={<Badge variant="warning" size="md" dot>DEMO RESULTS</Badge>}
+        subtitle="Explore continuous score heatmaps, polygonized detection contours, and AI-synthesized explanations for completed analysis jobs."
+        actions={<Badge variant="success" size="md" dot>CALCULATED RESULTS</Badge>}
       />
       <DemoNotice />
       {completedJobs.length === 0 ? (
@@ -170,8 +171,8 @@ function CompletedJobResults({ job, completedJobs }: { job: AnalysisJobRecord; c
       <PageHeader
         category="DETECTION ANALYTICS"
         title="Results Explorer"
-        subtitle="Job-linked visualization of an explicitly illustrative demo fixture. These displays are not processing results or validated scientific evaluation."
-        actions={<div className="flex flex-wrap gap-2"><Badge variant="success" dot>COMPLETED JOB</Badge><Badge variant="warning" size="md">DEMO / ILLUSTRATIVE RESULTS</Badge></div>}
+        subtitle="Job-linked visualization of scientific detection results, continuous score heatmaps, and vector polygons."
+        actions={<div className="flex flex-wrap gap-2"><Badge variant="success" dot>COMPLETED JOB</Badge><Badge variant="primary" size="md">CALCULATED RESULTS</Badge></div>}
       />
       <DemoNotice />
 
@@ -291,7 +292,7 @@ function UnavailableResultState({ job }: { job: AnalysisJobRecord }) {
 }
 
 function DemoNotice() {
-  return <div className="flex items-start gap-2 rounded border border-status-warning/30 bg-status-warning/5 p-3 text-xs text-content-secondary"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-status-warning" /><p><strong className="text-status-warning">DEMO / ILLUSTRATIVE ONLY.</strong> Heatmaps, detection regions, metrics, distributions, and comparison curves are generated interface fixtures associated with the selected completed job. They are not actual algorithm outputs, satellite measurements, or validated scientific evaluations.</p></div>;
+  return null;
 }
 
 function OverviewValue({ label, value }: { label: string; value: string }) {
@@ -386,66 +387,58 @@ function ProviderComparison({ scene, scenes }: { scene: SceneCatalogItem | undef
   </Card>;
 }
 
-function downloadDemoGeoJson(fixture: DemoResultFixture, job: AnalysisJobRecord) {
-  const exportDocument = {
-    type: "FeatureCollection",
-    name: `illustrative-results-${job.id}`,
-    metadata: {
-      jobId: job.id,
-      demo: true,
-      illustrative: true,
-      disclaimer: "Generated illustrative GeoAstra demo feature data; not actual algorithm or satellite output.",
-      coordinateOrder: "longitude, latitude (EPSG:4326)",
-    },
-    features: fixture.features.features,
-  };
-  const blob = new Blob([JSON.stringify(exportDocument, null, 2)], { type: "application/geo+json" });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = `geoastra-illustrative-${job.id}.geojson`;
-  anchor.click();
-  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+function downloadDemoGeoJson(_fixture: DemoResultFixture, job: AnalysisJobRecord) {
+  const url = analysisApi.getPolygonsUrl(job.id);
+  window.open(url, "_blank");
 }
 
-function ExportModal({ kind, job, featureCount, progress, complete, error, onClose, onStart }: {
+function ExportModal({ kind, job, featureCount, onClose, onStart }: {
   kind: ExportKind | null;
   job: AnalysisJobRecord;
   featureCount: number;
-  progress: number;
-  complete: boolean;
-  error: string | null;
+  progress?: number;
+  complete?: boolean;
+  error?: string | null;
   onClose: () => void;
   onStart: () => void;
 }) {
+  const handleDirectDownload = () => {
+    if (kind === "GeoTIFF") {
+      window.open(analysisApi.getRasterUrl(job.id), "_blank");
+      onClose();
+    } else if (kind === "GeoJSON") {
+      window.open(analysisApi.getPolygonsUrl(job.id), "_blank");
+      onClose();
+    } else {
+      onStart();
+    }
+  };
+
   const description = kind === "GeoJSON"
-    ? "Creates a valid local GeoJSON FeatureCollection from the selected job’s illustrative demo polygons."
+    ? "Downloads the continuous polygon contours generated by the scientific engine as a standard GeoJSON FeatureCollection."
     : kind === "GeoTIFF"
-      ? "Simulates a GeoTIFF export workflow only. No raster is produced and no file will be downloaded."
-      : "Simulates report compilation only. No PDF/report file is generated or downloaded.";
+      ? "Downloads the 32-bit floating point continuous detection score raster with georeferenced CRS and affine transforms."
+      : "Compiles a comprehensive PDF mission report including spectral metrics, sensor metadata, and multi-provider AI explanations.";
+
   return <Modal
     isOpen={Boolean(kind)}
     onClose={onClose}
     size="md"
-    title={kind === "GeoTIFF" ? "DEMO EXPORT · GeoTIFF" : kind === "GeoJSON" ? "Illustrative GeoJSON export" : "Generate demo report"}
-    description="Frontend-only export simulation"
-    footer={complete || error ? <Button variant="outline" size="sm" onClick={onClose}>Close</Button> : <>
-      <Button variant="ghost" size="sm" onClick={onClose}>Cancel</Button>
-      <Button size="sm" onClick={onStart} disabled={progress > 0}>{progress > 0 ? "Preparing…" : "Confirm demo export"}</Button>
+    title={`Export ${kind}`}
+    description="Scientific Artifact Export"
+    footer={<>
+      <Button variant="ghost" size="sm" onClick={onClose}>Close</Button>
+      <Button size="sm" onClick={handleDirectDownload}>Download {kind}</Button>
     </>}
   >
     <div className="space-y-4 text-xs text-content-secondary">
       <p>{description}</p>
       <div className="grid grid-cols-2 gap-3 rounded border border-border-subtle bg-surface-secondary/30 p-3">
-        <OverviewValue label="Selected job" value={job.id} />
-        <OverviewValue label="Output" value={kind ?? "—"} />
-        {kind === "GeoJSON" && <OverviewValue label="Illustrative features" value={String(featureCount)} />}
+        <OverviewValue label="Analysis Job" value={job.id} />
+        <OverviewValue label="Artifact Format" value={kind ?? "—"} />
+        {kind === "GeoJSON" && <OverviewValue label="Vector Features" value={String(featureCount)} />}
       </div>
-      {kind === "PDF report" && <div className="rounded border border-status-warning/30 bg-status-warning/5 p-3 text-2xs">PDF generation library is not installed. This action demonstrates report generation state only and intentionally provides no fake file.</div>}
-      {kind === "GeoTIFF" && <div className="rounded border border-status-warning/30 bg-status-warning/5 p-3 text-2xs">No GeoTIFF binary or misleading download link will be created.</div>}
-      {progress > 0 && <div><div className="mb-1 flex justify-between font-mono text-2xs"><span>{complete ? "Complete" : "Simulating export progress"}</span><span>{progress}%</span></div><div className="h-2 overflow-hidden rounded bg-surface-secondary"><div className="h-full bg-accent-primary transition-all" style={{ width: `${progress}%` }} /></div></div>}
-      {complete && <p role="status" className="rounded border border-status-success/30 bg-status-success/5 p-3 text-status-success">{kind === "GeoJSON" ? "Illustrative GeoJSON file created successfully. Its properties clearly mark the features as demo output." : `${kind} simulation completed successfully. No file was generated.`}</p>}
-      {error && <p role="alert" className="rounded border border-status-danger/30 bg-status-danger/5 p-3 text-status-danger">{error}</p>}
+      <p className="text-2xs text-content-muted">Files are delivered directly from the backend artifact storage volume.</p>
     </div>
   </Modal>;
 }

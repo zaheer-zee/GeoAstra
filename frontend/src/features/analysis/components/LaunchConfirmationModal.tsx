@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
-import { AlertTriangle, CheckCircle2 } from "lucide-react";
+import { CheckCircle2, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
-import { AnalysisJobRecord } from "@/features/analysis/types";
 
 export function LaunchConfirmationModal({
   isOpen,
@@ -24,24 +23,32 @@ export function LaunchConfirmationModal({
   targetSignatureName: string | null;
   preprocessing: string[];
   thresholdPercentile: number;
-  onConfirm: () => AnalysisJobRecord;
+  onConfirm: () => Promise<{ id: string } | null> | { id: string } | null;
 }) {
-  const [job, setJob] = useState<AnalysisJobRecord | null>(null);
+  const [createdId, setCreatedId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
     if (isOpen) {
-      setJob(null);
+      setCreatedId(null);
       setError("");
+      setLoading(false);
     }
   }, [isOpen]);
 
-  const confirm = () => {
+  const confirm = async () => {
     setError("");
+    setLoading(true);
     try {
-      setJob(onConfirm());
+      const res = await onConfirm();
+      if (res && res.id) {
+        setCreatedId(res.id);
+      }
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "The demo job could not be created.");
+      setError(reason instanceof Error ? reason.message : "Failed to dispatch analysis job.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -49,33 +56,35 @@ export function LaunchConfirmationModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={job ? "Demo Job Queued" : "Confirm Demo Analysis"}
-      description={job ? "The mock job is available in the shared Jobs queue." : "Review this configuration before creating a simulated job."}
+      title={createdId ? "Analysis Job Queued" : "Confirm Hyperspectral Analysis"}
+      description={createdId ? "Job dispatched to BullMQ worker pipeline." : "Review configuration parameters before submitting to the processing queue."}
       size="md"
-      closeOnOverlayClick={!job}
-      footer={job ? (
+      closeOnOverlayClick={!createdId && !loading}
+      footer={createdId ? (
         <>
           <Button variant="outline" onClick={onClose}>Close</Button>
-          <Link to="/jobs"><Button>View Jobs</Button></Link>
+          <Link to="/jobs"><Button>View in Jobs Queue</Button></Link>
         </>
       ) : (
         <>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={confirm}>Confirm &amp; Launch Demo</Button>
+          <Button variant="outline" onClick={onClose} disabled={loading}>Cancel</Button>
+          <Button onClick={confirm} isLoading={loading}>
+            {loading ? "Submitting Job..." : "Confirm & Dispatch Job"}
+          </Button>
         </>
       )}
     >
-      {job ? (
+      {createdId ? (
         <div role="status" className="space-y-3">
           <div className="flex items-start gap-2 rounded border border-status-success/30 bg-status-success/5 p-3">
             <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-status-success" />
             <div>
-              <p className="text-sm font-semibold text-content-primary">Queued · Demo only</p>
-              <p className="mt-1 break-all font-mono text-xs text-accent-primary">{job.id}</p>
+              <p className="text-sm font-semibold text-content-primary">Enqueued · Processing Pipeline Active</p>
+              <p className="mt-1 break-all font-mono text-xs text-accent-primary">{createdId}</p>
             </div>
           </div>
-          <p className="text-xs text-content-secondary">
-            This record contains configuration metadata only. No processing, detection output, or scientific result was generated.
+          <p className="text-xs text-content-secondary leading-relaxed">
+            Your analysis job has been submitted to the BullMQ processing queue. The scientific Python engine will validate the scene datacube, remove bad bands, run the requested algorithm, and generate GeoTIFF, GeoJSON, and PNG artifacts with multi-provider AI explanations.
           </p>
         </div>
       ) : (
@@ -88,9 +97,11 @@ export function LaunchConfirmationModal({
             <SummaryItem label="Preprocessing" value={preprocessing.join(" · ")} />
             <SummaryItem label="Threshold" value={`${thresholdPercentile}%ile`} />
           </div>
-          <div className="flex items-start gap-2 rounded border border-status-warning/30 bg-status-warning/10 p-3 text-xs">
-            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-status-warning" />
-            <p className="text-content-secondary"><strong className="text-status-warning">DEMO MODE.</strong> Confirming creates one queued mock job record. It does not execute an algorithm, access satellite data, or generate analysis results.</p>
+          <div className="flex items-start gap-2 rounded border border-accent-primary/30 bg-accent-primary/5 p-3 text-xs">
+            <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-accent-primary" />
+            <p className="text-content-secondary">
+              <strong className="text-accent-primary">Processing pipeline:</strong> Numerical detection is computed on the scientific engine. NVIDIA NIM, Hugging Face, and NaraRouter generate comparative explanations.
+            </p>
           </div>
           {error && <p role="alert" className="rounded border border-status-danger/30 bg-status-danger/5 p-2 text-xs text-status-danger">{error}</p>}
         </div>

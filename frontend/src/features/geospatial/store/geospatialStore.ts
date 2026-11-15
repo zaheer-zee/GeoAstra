@@ -122,8 +122,8 @@ const DEFAULT_LAYERS: Record<string, LayerConfig> = {
   },
   detections: {
     id: "detections",
-    name: "Detection Overlays (Demo)",
-    description: "Simulated spectral anomaly masks (Methane / Lithology)",
+    name: "Detection Overlays",
+    description: "Target detection and anomaly score overlays",
     visible: false,
     opacity: 0.6,
     color: "#10B981",

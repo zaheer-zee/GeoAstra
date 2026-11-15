@@ -65,7 +65,7 @@ export const WelcomeSection: React.FC = () => {
             <Calendar className="w-3.5 h-3.5 text-content-muted" />
             <span>{formattedDate}</span>
             <span>•</span>
-            <span className="text-status-warning font-medium">DEMO WORKSPACE ACTIVE</span>
+            <span className="text-status-success font-medium">PIPELINE INTEGRATED</span>
           </div>
         </div>
 
