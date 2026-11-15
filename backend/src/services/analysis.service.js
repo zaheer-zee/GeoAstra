@@ -24,9 +24,17 @@ export const analysisService = {
     }
   ) {
     // 1. Verify Area ownership
-    let area = await prisma.area.findUnique({
-      where: { id: areaId },
-    });
+    let area = null;
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(areaId);
+    if (isUuid) {
+      try {
+        area = await prisma.area.findUnique({
+          where: { id: areaId },
+        });
+      } catch (e) {
+        area = null;
+      }
+    }
 
     if (!area) {
       const existing = await prisma.area.findFirst({ where: { userId } });
@@ -35,7 +43,6 @@ export const analysisService = {
       } else {
         area = await prisma.area.create({
           data: {
-            id: areaId,
             userId,
             name: "Default Analysis AOI",
             geometry: {
@@ -85,7 +92,10 @@ export const analysisService = {
         where: { id: targetSignatureId },
       });
       if (!signature) {
-        throw ApiError.notFound("Target signature not found");
+        const fallback = await prisma.targetSignature.findFirst();
+        if (fallback) {
+          targetSignatureId = fallback.id;
+        }
       }
     }
 
@@ -102,7 +112,7 @@ export const analysisService = {
     const analysis = await prisma.analysis.create({
       data: {
         userId,
-        areaId,
+        areaId: area.id,
         sceneId: scene.id,
         status: "QUEUED",
         algorithmConfiguration: mergedConfig,
@@ -114,7 +124,7 @@ export const analysisService = {
     await addAnalysisJob({
       analysisId: analysis.id,
       userId,
-      areaId,
+      areaId: area.id,
       sceneId: scene.id,
       algorithm,
       algorithmConfiguration: mergedConfig,

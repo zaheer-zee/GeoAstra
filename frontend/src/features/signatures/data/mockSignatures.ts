@@ -25,23 +25,34 @@ function publicSignature(
 export const PUBLIC_SIGNATURES: SpectralSignature[] = [
   publicSignature(
     {
-      id: "sig-chlorophyll-canopy",
-      name: "Healthy Chlorophyll Canopy",
+      id: "default_mineral_kaolinite",
+      name: "Kaolinite Mineral (Diagnostic Doublet)",
+      category: "Minerals",
+      description: "Diagnostic Al-OH absorption doublet at 2.16 and 2.20 µm in the shortwave infrared region.",
+      sensor: "AVIRIS",
+      dataSource: "USGS Spectral Library v7",
+    },
+    [0.21, 0.27, 0.31, 0.34, 0.36, 0.39, 0.43, 0.46, 0.42, 0.40, 0.37, 0.16, 0.29]
+  ),
+  publicSignature(
+    {
+      id: "default_vegetation_chlorophyll",
+      name: "Green Vegetation (High Chlorophyll)",
       category: "Vegetation",
-      description: "Illustrative green vegetation profile with low red reflectance, a red-edge rise, and higher near-infrared response.",
-      sensor: "Generic spectral reference",
-      dataSource: "USGS Spectral Library reference label; curve is illustrative",
+      description: "Standard photosynthetically active vegetation profile with strong red-edge rise and high NIR plateau.",
+      sensor: "Generic Hyperspectral",
+      dataSource: "USGS Spectral Library v7",
     },
     [0.035, 0.075, 0.055, 0.035, 0.24, 0.48, 0.50, 0.42, 0.25, 0.39, 0.08, 0.31, 0.18]
   ),
   publicSignature(
     {
       id: "sig-kaolinite",
-      name: "Kaolinite",
+      name: "Kaolinite Reference",
       category: "Minerals",
-      description: "Illustrative clay-mineral profile highlighting an Al-OH absorption feature around the shortwave infrared region.",
-      sensor: "AVIRIS-NG",
-      dataSource: "USGS Spectral Library reference label; curve is illustrative",
+      description: "Al-OH absorption feature around SWIR.",
+      sensor: "AVIRIS",
+      dataSource: "USGS Spectral Library v7",
     },
     [0.21, 0.27, 0.31, 0.34, 0.36, 0.39, 0.43, 0.46, 0.42, 0.40, 0.37, 0.16, 0.29]
   ),

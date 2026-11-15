@@ -25,8 +25,12 @@ function loadSavedAOIs(): AOIFeature[] {
     const raw = localStorage.getItem(AOI_STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) {
-        return parsed;
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        // Filter out legacy mock IDs that don't match backend database
+        const valid = parsed.filter((item: any) => item?.properties?.id && !item.properties.id.startsWith("aoi-"));
+        if (valid.length > 0) {
+          return valid;
+        }
       }
     }
   } catch (err) {

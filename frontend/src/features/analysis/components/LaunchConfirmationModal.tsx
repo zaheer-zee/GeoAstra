@@ -46,7 +46,19 @@ export function LaunchConfirmationModal({
         setCreatedId(res.id);
       }
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Failed to dispatch analysis job.");
+      let rawMsg = reason instanceof Error ? reason.message : "Failed to dispatch analysis job.";
+      if (rawMsg.includes("Validation error:")) {
+        try {
+          const jsonPart = rawMsg.replace("Validation error:", "").trim();
+          const parsed = JSON.parse(jsonPart);
+          if (Array.isArray(parsed) && parsed[0]?.message) {
+            rawMsg = parsed.map((p: any) => `${p.path?.slice(1).join(".") || p.path?.join(".") || "Field"}: ${p.message}`).join("; ");
+          }
+        } catch {
+          // ignore parse error
+        }
+      }
+      setError(rawMsg);
     } finally {
       setLoading(false);
     }

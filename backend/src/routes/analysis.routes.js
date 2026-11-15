@@ -8,7 +8,7 @@ const router = Router();
 
 const createAnalysisSchema = z.object({
   body: z.object({
-    areaId: z.string().uuid("Invalid area ID format"),
+    areaId: z.string().min(1, "Area ID is required"),
     sceneId: z.string().min(1, "Scene ID is required"),
     algorithm: z.enum(["rxd", "matched_filter", "cem", "combined", "fusion"]).default("rxd"),
     anomalyMethod: z.string().optional(),
