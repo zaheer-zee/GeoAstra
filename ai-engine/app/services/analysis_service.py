@@ -141,7 +141,13 @@ class ScientificAnalysisService:
 
         elif algo_name in ("matched_filter", "mf", "cem"):
             if target_spectrum:
-                target_used = np.asarray(target_spectrum, dtype=np.float64)
+                target_raw = np.asarray(target_spectrum, dtype=np.float64).flatten()
+                if target_raw.shape[0] == active_bands:
+                    target_used = target_raw
+                else:
+                    x_old = np.linspace(0, 1, max(len(target_raw), 1))
+                    x_new = np.linspace(0, 1, active_bands)
+                    target_used = np.interp(x_new, x_old, target_raw)
             else:
                 if ground_truth is not None and np.any(ground_truth > 0):
                     gt_flat = ground_truth.flatten()

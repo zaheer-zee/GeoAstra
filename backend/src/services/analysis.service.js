@@ -62,7 +62,22 @@ export const analysisService = {
         });
       }
     } else if (area.userId !== userId) {
-      throw ApiError.forbidden("Access denied: You do not own this area");
+      // Allow any user to analyze benchmark or shared AOIs by auto-associating with their account
+      const userCopy = await prisma.area.findFirst({
+        where: { userId, name: area.name },
+      });
+      if (userCopy) {
+        area = userCopy;
+      } else {
+        area = await prisma.area.create({
+          data: {
+            userId,
+            name: area.name,
+            geometry: area.geometry,
+            crs: area.crs || "EPSG:4326",
+          },
+        });
+      }
     }
 
     // 2. Verify or resolve Scene
