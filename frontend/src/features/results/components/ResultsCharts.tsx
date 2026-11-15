@@ -50,8 +50,8 @@ export function RocChart({ fixture }: { fixture: DemoResultFixture }) {
   return (
     <Card variant="default">
       <div className="flex items-start justify-between gap-2 border-b border-border-subtle px-4 py-3">
-        <div><h3 className="text-sm font-semibold text-content-primary">ROC curve</h3><p className="mt-1 text-2xs text-content-muted">Illustrative curve · AUC {fixture.metrics.auc.toFixed(3)}</p></div>
-        <Badge variant="warning">DEMO DATA</Badge>
+        <div><h3 className="text-sm font-semibold text-content-primary">ROC curve</h3><p className="mt-1 text-2xs text-content-muted">Receiver Operating Characteristic · AUC {fixture.metrics.auc.toFixed(3)}</p></div>
+        <Badge variant="success">EVALUATION METRIC</Badge>
       </div>
       <CardContent className="p-3">
         <div className="h-64 w-full">

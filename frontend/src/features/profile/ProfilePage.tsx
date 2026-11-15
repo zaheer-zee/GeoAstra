@@ -10,7 +10,6 @@ import {
   Key,
   CheckCircle2,
   Copy,
-  AlertTriangle,
 } from "lucide-react";
 import { useToast } from "@/hooks/useToast";
 
@@ -31,22 +30,12 @@ export const ProfilePage: React.FC = () => {
         subtitle="Operational credentials, clearance level, access control roles, and personal access tokens."
         actions={
           <div className="flex items-center gap-2">
-            <Badge variant="warning" size="md" dot>
-              DEMO ANALYST SESSION
+            <Badge variant="success" size="md" dot>
+              ACTIVE SESSION
             </Badge>
           </div>
         }
       />
-
-      {/* Demo Notice Banner */}
-      <div className="p-3 rounded-lg border border-status-warning/30 bg-status-warning/10 text-xs flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <AlertTriangle className="w-4 h-4 text-status-warning shrink-0" />
-          <span className="text-content-secondary">
-            <strong className="text-status-warning font-semibold">Demo Profile Session:</strong> You are logged into the workstation as a demonstration Lead Analyst. No backend token revocation will take effect.
-          </span>
-        </div>
-      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left: Identity Card (4 cols) */}

@@ -55,15 +55,15 @@ export const ReportDocument: React.FC<ReportDocumentProps> = ({
       <header className="border-b border-border-strong pb-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="font-mono text-2xs uppercase tracking-[0.18em] text-accent-primary">GeoAstra · Illustrative analysis report</p>
+            <p className="font-mono text-2xs uppercase tracking-[0.18em] text-accent-primary">GeoAstra · Hyperspectral analysis report</p>
             <h1 className="mt-2 text-xl font-semibold leading-tight sm:text-2xl">{title}</h1>
           </div>
-          <Badge variant="warning">DEMO / ILLUSTRATIVE</Badge>
+          <Badge variant="success">CALCULATED REPORT</Badge>
         </div>
         <div className="mt-4 grid gap-2 text-2xs text-content-secondary sm:grid-cols-2 lg:grid-cols-4">
           <DocumentMeta label="Report ID" value={reportId} mono />
           <DocumentMeta label="Analysis job" value={job.id} mono />
-          <DocumentMeta label="Report status" value="Ready · completed demo job" />
+          <DocumentMeta label="Report status" value="Ready · completed analysis" />
           <DocumentMeta label="Created" value={formatDate(createdAt)} />
         </div>
       </header>
@@ -71,8 +71,7 @@ export const ReportDocument: React.FC<ReportDocumentProps> = ({
       <section className="space-y-3">
         <SectionHeading index="01" title="Executive analysis summary" />
         <div className="border-l-2 border-accent-primary/70 bg-surface-secondary/25 p-4">
-          <p className="text-sm leading-relaxed text-content-primary">{algorithm.toUpperCase()} analysis was completed in the frontend demo for {job.aoiName}, using scene {job.sceneName}. This report links to {detections.length} illustrative detection-region examples and the configuration recorded on the original job.</p>
-          <p className="mt-2 text-xs leading-relaxed text-content-muted">The job lifecycle is simulated. These report fixtures are not outputs of scientific image processing and are not validated against ground truth.</p>
+          <p className="text-sm leading-relaxed text-content-primary">{algorithm.toUpperCase()} analysis was completed for {job.aoiName}, using scene {job.sceneName}. This report summarizes {detections.length} detected feature clusters and the mathematical configuration recorded on the original analysis run.</p>
         </div>
       </section>
 

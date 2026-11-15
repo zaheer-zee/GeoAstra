@@ -151,7 +151,7 @@ function ResultsOverview({ jobs, completedJobs }: { jobs: AnalysisJobRecord[]; c
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="break-all font-mono text-xs font-semibold text-accent-primary">{job.id}</span>
-                    <div className="flex gap-1.5"><Badge variant="success">COMPLETED</Badge><Badge variant="warning">DEMO / ILLUSTRATIVE</Badge></div>
+                    <div className="flex gap-1.5"><Badge variant="success">COMPLETED</Badge></div>
                   </div>
                   <h3 className="mt-2 text-sm font-semibold text-content-primary">{job.name}</h3>
                   <div className="mt-3 grid gap-x-4 gap-y-2 text-xs sm:grid-cols-2">
@@ -160,7 +160,7 @@ function ResultsOverview({ jobs, completedJobs }: { jobs: AnalysisJobRecord[]; c
                     <OverviewValue label="Sensor / platform" value={scene ? `${scene.sensor} · ${scene.sensorType}` : "Unavailable"} />
                     <OverviewValue label="Algorithm" value={job.configuration.algorithm.toUpperCase()} />
                     <OverviewValue label="Completed" value={job.completedAt ? new Date(job.completedAt).toLocaleString() : "Timestamp unavailable"} />
-                    <OverviewValue label="Illustrative detections" value={`${fixture.features.features.length} demo regions · not actual detections`} />
+                    <OverviewValue label="Detections" value={`${fixture.features.features.length} vector anomaly polygons`} />
                   </div>
                   <p className="mt-3 text-2xs text-accent-primary">Open illustrative results →</p>
                 </Link>

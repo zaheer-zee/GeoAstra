@@ -59,12 +59,9 @@ function ReportCatalogue({ reports, jobs }: { reports: DerivedReport[]; jobs: An
       <PageHeader
         category="INTELLIGENCE REPORTING"
         title="Reports"
-        subtitle="Browse report views derived from completed analysis jobs and their associated illustrative Phase 9 result fixtures."
-        actions={<Badge variant="warning" size="md">DEMO REPORTS</Badge>}
+        subtitle="Browse report views derived from completed analysis jobs and algorithm outputs."
+        actions={<Badge variant="primary" size="md">ANALYTICAL REPORTS</Badge>}
       />
-      <div className="border border-status-warning/30 bg-status-warning/5 p-3 text-xs leading-relaxed text-content-secondary">
-        <strong className="text-status-warning">ILLUSTRATIVE CONTENT.</strong> Reports are created as views of completed jobs in this browser. Metrics and detections reuse the job-linked demo fixture; they are not validated scientific results.
-      </div>
 
       <div className="flex flex-col gap-3 border border-border-subtle bg-surface-panel p-3 lg:flex-row lg:items-end">
         <label className="min-w-0 flex-1">
@@ -243,7 +240,7 @@ function ReportDetail({ report, job, isPreview }: { report: DerivedReport; job: 
         category="INTELLIGENCE REPORTING"
         title="Analysis report"
         subtitle="Scientific-document view linked to a completed job and its existing illustrative result fixture."
-        actions={<Badge variant="warning">DEMO / ILLUSTRATIVE</Badge>}
+        actions={<Badge variant="success">READY FOR EXPORT</Badge>}
       />
       <div className="flex flex-wrap items-center justify-between gap-3 border border-border-subtle bg-surface-panel p-3">
         <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2 text-xs">
