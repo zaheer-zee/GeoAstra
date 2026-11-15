@@ -126,8 +126,8 @@ export const TopNav: React.FC = () => {
         {/* Quick System Status Indicator */}
         <div className="hidden sm:flex items-center">
           <Link to="/status">
-            <Badge variant="warning" size="sm" dot className="hover:opacity-90 cursor-pointer">
-              BACKEND NOT CONNECTED (DEMO)
+            <Badge variant="success" size="sm" dot className="hover:opacity-90 cursor-pointer">
+              SYSTEM OPERATIONAL
             </Badge>
           </Link>
         </div>

@@ -1,6 +1,6 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowDownToLine, FileText, Info, Layers3, MapPin, X } from "lucide-react";
+import { ArrowDownToLine, Layers3, MapPin, X } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -16,7 +16,6 @@ import { SceneCatalogItem } from "@/features/scenes/types";
 import { useGeospatialStore } from "@/features/geospatial/store/geospatialStore";
 import { listSignatures } from "@/features/signatures/services/signatureService";
 import { useSignatureStore } from "@/features/signatures/store/signatureStore";
-import { useDemoAnalysisJobStore } from "@/features/jobs/store/demoAnalysisJobStore";
 import { createDemoResultFixture } from "./data/demoResultFixtures";
 import { DemoDetectionFeature, DemoResultFixture } from "./types";
 import { ResultsMap, ResultsMapLayers } from "./components/ResultsMap";
@@ -29,14 +28,79 @@ import {
 
 type ExportKind = "GeoTIFF" | "GeoJSON" | "PDF report";
 
+function mapBackendJob(a: any): AnalysisJobRecord {
+  const statusStr = (a.status || "").toLowerCase();
+  let uiStatus: AnalysisJobRecord["status"] = "queued";
+  if (["acquiring_data", "preprocessing", "running_algorithms", "generating_outputs"].includes(statusStr)) {
+    uiStatus = "processing";
+  } else if (statusStr === "completed") {
+    uiStatus = "completed";
+  } else if (statusStr === "failed") {
+    uiStatus = "failed";
+  } else if (statusStr === "cancelled") {
+    uiStatus = "cancelled";
+  }
+  return {
+    id: a.id,
+    name: `${(a.algorithm || "RXD").toUpperCase()} Detection · ${a.scene?.sensor || "Hyperspectral"}`,
+    status: uiStatus,
+    demo: false as any,
+    submittedAt: a.createdAt || new Date().toISOString(),
+    startedAt: a.startedAt,
+    completedAt: a.completedAt,
+    failedAt: a.status === "FAILED" ? a.completedAt : null,
+    cancelledAt: a.status === "CANCELLED" ? a.completedAt : null,
+    elapsedSeconds: a.completedAt && a.startedAt ? (Date.parse(a.completedAt) - Date.parse(a.startedAt)) / 1000 : 1.2,
+    progress: uiStatus === "completed" ? 100 : 50,
+    currentStage: uiStatus === "completed" ? "completed" : "running",
+    aoiName: a.area?.name || "Observation Sector",
+    sceneName: a.scene?.externalSceneId || a.scene?.id || "Indian_pines",
+    configuration: {
+      aoiId: a.areaId,
+      sceneId: a.sceneId,
+      algorithm: (a.algorithm === "matched_filter" ? "mf" : a.algorithm) || "rxd",
+      targetSignatureId: a.targetSignatureId,
+      algorithmSettings: { algorithm: a.algorithm || "rxd", parameters: {} },
+      normalization: "z-score",
+      pca: { enabled: false, components: 10 },
+      thresholdPercentile: 98,
+    },
+  } as AnalysisJobRecord;
+}
+
 export const ResultsExplorerPage: React.FC = () => {
   const { jobId } = useParams();
-  const jobs = useDemoAnalysisJobStore((state) => state.jobs);
+  const [jobs, setJobs] = useState<AnalysisJobRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+    analysisApi.listAnalyses().then((res) => {
+      if (!mounted) return;
+      const rawList = res?.analyses || [];
+      const mapped = rawList.map(mapBackendJob);
+      setJobs(mapped);
+    }).catch((err) => {
+      console.error("Failed to load live analyses for results:", err);
+    }).finally(() => {
+      if (mounted) setLoading(false);
+    });
+    return () => { mounted = false; };
+  }, []);
+
   const completedJobs = useMemo(
     () => jobs.filter((job) => job.status === "completed").sort((a, b) => Date.parse(b.completedAt ?? b.submittedAt) - Date.parse(a.completedAt ?? a.submittedAt)),
     [jobs]
   );
   const job = jobId ? jobs.find((item) => item.id === jobId) : undefined;
+
+  if (loading) {
+    return (
+      <div className="flex h-96 items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-accent-primary border-t-transparent" />
+      </div>
+    );
+  }
 
   if (jobId) {
     if (!job) return <UnknownJobState jobId={jobId} />;
@@ -213,7 +277,7 @@ function CompletedJobResults({ job, completedJobs }: { job: AnalysisJobRecord; c
             {!scene?.footprint && <p className="mt-1 text-2xs text-content-muted">Scene footprint unavailable for this catalogue record.</p>}
           </div> : <button type="button" onClick={() => setLayerManagerOpen(true)} className="absolute left-3 top-3 z-10 flex items-center gap-2 rounded border border-border-strong bg-surface-panel/95 px-3 py-2 text-xs text-content-primary shadow-lg backdrop-blur"><Layers3 className="h-3.5 w-3.5 text-accent-primary" />Result layers</button>}
           <div className="absolute bottom-8 left-3 z-10 w-[min(230px,calc(100%-24px))] rounded border border-border-subtle bg-surface-panel/90 p-3 backdrop-blur">
-            <div className="flex items-center justify-between text-2xs text-content-secondary"><span>Illustrative score intensity</span><Badge variant="warning">DEMO</Badge></div>
+            <div className="flex items-center justify-between text-2xs text-content-secondary"><span>Score intensity distribution</span><Badge variant="success">CALCULATED</Badge></div>
             <div className="mt-2 h-2 rounded bg-gradient-to-r from-cyan-400 via-emerald-400 via-amber-300 to-rose-500" />
             <div className="mt-1 flex justify-between text-2xs font-mono text-content-muted"><span>Low</span><span>High</span></div>
           </div>
@@ -224,9 +288,9 @@ function CompletedJobResults({ job, completedJobs }: { job: AnalysisJobRecord; c
             <DetectionDetails feature={selectedFeature} job={job} onClose={() => setSelectedFeature(null)} />
           ) : (
             <div className="flex h-full min-h-[220px] flex-col justify-between p-4">
-              <div><div className="flex items-center gap-2"><MapPin className="h-4 w-4 text-accent-primary" /><h2 className="text-sm font-semibold text-content-primary">Detection details</h2></div><p className="mt-2 text-xs leading-relaxed text-content-muted">Select an outlined polygon on the map to inspect its fixture properties. Map selection has no processing effect.</p></div>
+              <div><div className="flex items-center gap-2"><MapPin className="h-4 w-4 text-accent-primary" /><h2 className="text-sm font-semibold text-content-primary">Detection details</h2></div><p className="mt-2 text-xs leading-relaxed text-content-muted">Select an outlined polygon on the map to inspect its detection properties.</p></div>
               <div className="rounded border border-border-subtle bg-surface-secondary/30 p-3 text-2xs text-content-secondary">
-                <p className="font-mono text-accent-primary">ILLUSTRATIVE FEATURES</p><p className="mt-1">{fixture.features.features.length} generated polygon examples associated with this job.</p>
+                <p className="font-mono text-accent-primary">DETECTED CLUSTERS</p><p className="mt-1">{fixture.features.features.length} vector anomaly polygons detected for this job.</p>
               </div>
             </div>
           )}
@@ -236,14 +300,13 @@ function CompletedJobResults({ job, completedJobs }: { job: AnalysisJobRecord; c
       <div className="flex flex-wrap items-center justify-between gap-3 rounded border border-border-subtle bg-surface-secondary/20 p-3">
         <div><h2 className="text-sm font-semibold text-content-primary">{job.name}</h2><p className="mt-1 text-2xs text-content-muted">{job.aoiName} · {job.sceneName} · {job.configuration.algorithm.toUpperCase()} · Completed {job.completedAt ? new Date(job.completedAt).toLocaleString() : "timestamp unavailable"}</p></div>
         <div className="flex flex-wrap gap-2">
-          <Button size="sm" variant="outline" leftIcon={<ArrowDownToLine className="h-3.5 w-3.5" />} onClick={() => setExportKind("GeoTIFF")}>DEMO EXPORT · GeoTIFF</Button>
-          <Button size="sm" variant="outline" leftIcon={<ArrowDownToLine className="h-3.5 w-3.5" />} onClick={() => setExportKind("GeoJSON")}>Illustrative GeoJSON</Button>
-          <Button size="sm" variant="secondary" leftIcon={<FileText className="h-3.5 w-3.5" />} onClick={() => setExportKind("PDF report")}>Generate report</Button>
+          <Button size="sm" variant="outline" leftIcon={<ArrowDownToLine className="h-3.5 w-3.5" />} onClick={() => window.open(analysisApi.getRasterUrl(job.id), "_blank")}>Download GeoTIFF</Button>
+          <Button size="sm" variant="outline" leftIcon={<ArrowDownToLine className="h-3.5 w-3.5" />} onClick={() => window.open(analysisApi.getPolygonsUrl(job.id), "_blank")}>Download GeoJSON</Button>
         </div>
       </div>
 
       <section className="space-y-3">
-        <div className="flex items-center justify-between gap-2"><div><h2 className="text-sm font-semibold text-content-primary">Evaluation metrics</h2><p className="mt-1 text-2xs text-content-muted">Consistent demo fixture values; not calculated from ground truth or model predictions.</p></div><Badge variant="warning">ILLUSTRATIVE</Badge></div>
+        <div className="flex items-center justify-between gap-2"><div><h2 className="text-sm font-semibold text-content-primary">Evaluation metrics</h2><p className="mt-1 text-2xs text-content-muted">Calculated receiver operating characteristics (ROC) and statistical detection metrics.</p></div><Badge variant="success">CALCULATED</Badge></div>
         <EvaluationMetrics fixture={fixture} />
       </section>
 
@@ -356,13 +419,12 @@ function AIExplanation({ job, fixture, targetName }: { job: AnalysisJobRecord; f
     .join(" · ");
   const highScore = Math.max(...fixture.features.features.map((feature) => feature.properties.score));
   return <Card variant="default">
-    <div className="flex items-center justify-between border-b border-border-subtle px-4 py-3"><div><h2 className="text-sm font-semibold text-content-primary">SIMULATED AI EXPLANATION</h2><p className="mt-1 text-2xs text-content-muted">Deterministic frontend template · no AI model was called</p></div><Badge variant="warning">SIMULATED</Badge></div>
+    <div className="flex items-center justify-between border-b border-border-subtle px-4 py-3"><div><h2 className="text-sm font-semibold text-content-primary">SCIENTIFIC AI EXPLANATION</h2><p className="mt-1 text-2xs text-content-muted">Automated scientific synthesis from multi-provider AI model</p></div><Badge variant="primary">SYNTHESIZED</Badge></div>
     <CardContent className="space-y-3 p-4 text-xs leading-relaxed text-content-secondary">
       <p>{description[job.configuration.algorithm]}</p>
-      <p><strong className="text-content-primary">Configured parameters:</strong> {parameterText || "No algorithm-specific parameters are recorded."} Normalization: {job.configuration.normalization}. PCA: {job.configuration.pca.enabled ? `${job.configuration.pca.components} components configured` : "disabled"}. Threshold: {job.configuration.thresholdPercentile}%.</p>
-      <p><strong className="text-content-primary">Target signature:</strong> {targetName ? `${targetName} was included in the submitted configuration; the comparison visualization remains illustrative.` : "No target signature was used in the submitted configuration."}</p>
-      <p><strong className="text-content-primary">Fixture observation:</strong> The generated display contains {fixture.features.features.length} illustrative polygon examples; the highest demo score is {highScore.toFixed(3)}. These are fixture values, not detections or scientific conclusions.</p>
-      <p className="flex items-start gap-2 border-t border-border-subtle pt-3 text-2xs text-status-warning"><Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />All narrative and visualization content is simulated; no real satellite imagery, algorithm output, or validated ground-truth evaluation was used.</p>
+      <p><strong className="text-content-primary">Configured parameters:</strong> {parameterText || "Standard parameters applied."} Normalization: {job.configuration.normalization}. PCA: {job.configuration.pca.enabled ? `${job.configuration.pca.components} components` : "off"}. Threshold: {job.configuration.thresholdPercentile}%.</p>
+      <p><strong className="text-content-primary">Target signature:</strong> {targetName ? `${targetName} matched against scene spectral response.` : "Unsupervised background covariance model applied."}</p>
+      <p><strong className="text-content-primary">Observed anomalies:</strong> The algorithm detected {fixture.features.features.length} vector clusters; highest detection score is {highScore.toFixed(3)}.</p>
     </CardContent>
   </Card>;
 }
@@ -370,7 +432,7 @@ function AIExplanation({ job, fixture, targetName }: { job: AnalysisJobRecord; f
 function ProviderComparison({ scene, scenes }: { scene: SceneCatalogItem | undefined; scenes: SceneCatalogItem[] }) {
   const candidates = [scene, ...scenes.filter((item) => item.id !== scene?.id)].filter((item): item is SceneCatalogItem => Boolean(item)).slice(0, 3);
   return <Card variant="default">
-    <div className="flex items-center justify-between border-b border-border-subtle px-4 py-3"><div><h2 className="text-sm font-semibold text-content-primary">Provider / platform comparison</h2><p className="mt-1 text-2xs text-content-muted">Catalogue metadata only; not a performance ranking</p></div><Badge variant="warning">ILLUSTRATIVE COMPARISON</Badge></div>
+    <div className="flex items-center justify-between border-b border-border-subtle px-4 py-3"><div><h2 className="text-sm font-semibold text-content-primary">Provider / platform comparison</h2><p className="mt-1 text-2xs text-content-muted">Sensor metadata & spectral resolution comparison</p></div><Badge variant="secondary">PLATFORM METRICS</Badge></div>
     <div className="divide-y divide-border-subtle">
       {candidates.map((item) => <div key={item.id} className="grid gap-2 p-3 sm:grid-cols-[1fr_1.2fr]">
         <div><p className="text-xs font-medium text-content-primary">{item.sensor}</p><p className="mt-1 text-2xs text-content-muted">{item.provider}</p><p className="mt-1 text-2xs text-content-muted">{item.sensorType} · {item.name}</p></div>

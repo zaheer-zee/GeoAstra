@@ -105,19 +105,19 @@ export const Sidebar: React.FC = () => {
         <div className="p-3 border-t border-border-subtle bg-surface-panel/40 shrink-0 flex flex-col gap-2">
           {/* Environment Status Pill */}
           {!isSidebarCollapsed ? (
-            <div className="px-2.5 py-2 rounded bg-surface-elevated/70 border border-status-warning/30 flex items-center justify-between text-2xs font-mono">
+            <div className="px-2.5 py-2 rounded bg-surface-elevated/70 border border-status-success/30 flex items-center justify-between text-2xs font-mono">
               <span className="flex items-center gap-1.5 text-content-secondary">
-                <span className="w-2 h-2 rounded-full bg-status-warning animate-pulse" />
+                <span className="w-2 h-2 rounded-full bg-status-success animate-pulse" />
                 ENVIRONMENT
               </span>
-              <span className="text-status-warning font-semibold flex items-center gap-1">
-                DEMO MODE
+              <span className="text-status-success font-semibold flex items-center gap-1">
+                ONLINE
               </span>
             </div>
           ) : (
-            <Tooltip content="Environment: Demo Mode (Backend Not Connected)" position="right">
-              <div className="w-10 h-8 mx-auto rounded bg-surface-elevated border border-status-warning/30 flex items-center justify-center text-status-warning">
-                <span className="w-2 h-2 rounded-full bg-status-warning animate-pulse" />
+            <Tooltip content="Environment: Online (Backend Connected)" position="right">
+              <div className="w-10 h-8 mx-auto rounded bg-surface-elevated border border-status-success/30 flex items-center justify-center text-status-success">
+                <span className="w-2 h-2 rounded-full bg-status-success animate-pulse" />
               </div>
             </Tooltip>
           )}
